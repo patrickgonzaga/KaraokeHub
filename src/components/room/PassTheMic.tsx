@@ -1,0 +1,228 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useRoom } from "../../hooks/useRoom";
+import { useRoomStore } from "../../store/useRoomStore";
+import { Mic, Disc, Play, Star, Sparkles } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import confetti from "canvas-confetti";
+
+interface PassTheMicProps {
+  roomData: ReturnType<typeof useRoom>;
+}
+
+export default function PassTheMic({ roomData }: PassTheMicProps) {
+  const { users } = roomData;
+  const { passTheMicVisible, setPassTheMicVisible } = useRoomStore();
+
+  const [candidates, setCandidates] = useState<string[]>([]);
+  const [spinning, setSpinning] = useState(false);
+  const [rotation, setRotation] = useState(0);
+  const [winner, setWinner] = useState<string | null>(null);
+
+  // Initialize candidates list with online users if list is empty
+  useEffect(() => {
+    if (users.length > 0) {
+      const onlineNames = users.filter((u) => u.is_online).map((u) => u.nickname);
+      setCandidates(onlineNames);
+    }
+  }, [users, passTheMicVisible]);
+
+  if (!passTheMicVisible || candidates.length === 0) return null;
+
+  const handleVolunteer = (name: string) => {
+    if (candidates.includes(name)) {
+      setCandidates(candidates.filter((c) => c !== name));
+    } else {
+      setCandidates([...candidates, name]);
+    }
+  };
+
+  const spinWheel = () => {
+    if (spinning || candidates.length === 0) return;
+
+    setSpinning(true);
+    setWinner(null);
+
+    // Pick a random winner from candidates
+    const winnerIdx = Math.floor(Math.random() * candidates.length);
+    const selectedWinner = candidates[winnerIdx];
+
+    // Calculate rotation: 5 full spins (1800deg) + slice alignment
+    const sliceAngle = 360 / candidates.length;
+    // Align target slice to the top (which is 270deg offset or pointer at top)
+    const targetAngle = 360 - (winnerIdx * sliceAngle + sliceAngle / 2);
+    const extraSpins = 5;
+    const finalRotation = extraSpins * 360 + targetAngle;
+
+    setRotation(finalRotation);
+
+    setTimeout(() => {
+      setSpinning(false);
+      setWinner(selectedWinner);
+
+      // Trigger Confetti Celebration!
+      confetti({
+        particleCount: 80,
+        spread: 60,
+        colors: ["#a78bfa", "#3b82f6", "#ec4899"],
+      });
+    }, 4500); // Animation duration matches transition
+  };
+
+  // Generate color palette for wheel segments
+  const colors = [
+    "#8b5cf6", // purple
+    "#3b82f6", // blue
+    "#ec4899", // pink
+    "#10b981", // emerald
+    "#f59e0b", // amber
+    "#ef4444", // rose
+    "#06b6d4", // cyan
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="w-full max-w-md glass-panel p-6 md:p-8 rounded-2xl border border-purple-500/25 relative overflow-hidden flex flex-col items-center"
+      >
+        {/* Top styling band */}
+        <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-purple-500 to-pink-500"></div>
+
+        {/* Header */}
+        <div className="text-center mb-6">
+          <h3 className="font-heading text-xl uppercase tracking-wider text-white flex items-center justify-center gap-2">
+            <Mic className="w-5 h-5 text-purple-400 animate-pulse" />
+            Pass The Mic
+          </h3>
+          <p className="text-zinc-500 text-xs mt-1">
+            Spin the roulette to select the next singer!
+          </p>
+        </div>
+
+        {/* The SVG Wheel */}
+        <div className="relative w-64 h-64 mb-6 flex items-center justify-center wheel-container select-none">
+          <motion.svg
+            className="w-full h-full drop-shadow-2xl"
+            viewBox="0 0 100 100"
+            animate={{ rotate: rotation }}
+            transition={{
+              duration: 4.5,
+              ease: [0.25, 0.1, 0.25, 1], // Cubic bezier for slowing down naturally
+            }}
+          >
+            {candidates.map((candidate, idx) => {
+              const numSlices = candidates.length;
+              const angle = 360 / numSlices;
+              const startAngle = idx * angle;
+              const endAngle = (idx + 1) * angle;
+
+              // Convert degrees to radians for drawing SVG arcs
+              const rad = Math.PI / 180;
+              const x1 = 50 + 45 * Math.cos(startAngle * rad);
+              const y1 = 50 + 45 * Math.sin(startAngle * rad);
+              const x2 = 50 + 45 * Math.cos(endAngle * rad);
+              const y2 = 50 + 45 * Math.sin(endAngle * rad);
+
+              const largeArcFlag = angle > 180 ? 1 : 0;
+              const color = colors[idx % colors.length];
+
+              // Rotation for text label in the middle of slice
+              const textAngle = startAngle + angle / 2;
+              const textX = 50 + 25 * Math.cos(textAngle * rad);
+              const textY = 50 + 25 * Math.sin(textAngle * rad);
+
+              return (
+                <g key={idx}>
+                  {/* Wheel Slice */}
+                  <path
+                    d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
+                    fill={color}
+                    stroke="#09090b"
+                    strokeWidth="0.8"
+                  />
+                  {/* Candidate Name Label */}
+                  <text
+                    x={textX}
+                    y={textY}
+                    fill="#ffffff"
+                    fontSize={candidates.length > 6 ? "3" : "4"}
+                    fontWeight="bold"
+                    textAnchor="middle"
+                    alignmentBaseline="middle"
+                    transform={`rotate(${textAngle + 180}, ${textX}, ${textY})`}
+                    className="select-none font-medium pointer-events-none"
+                  >
+                    {candidate.slice(0, 7)}
+                  </text>
+                </g>
+              );
+            })}
+            {/* Center Circle Pin */}
+            <circle cx="50" cy="50" r="8" fill="#09090b" stroke="#ffffff" strokeWidth="1.5" />
+          </motion.svg>
+        </div>
+
+        {/* Results / Control Buttons */}
+        <AnimatePresence mode="wait">
+          {winner ? (
+            <motion.div
+              key="winner"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center w-full space-y-4"
+            >
+              <div className="bg-zinc-950/60 border border-zinc-900 px-6 py-3.5 rounded-xl shadow-inner max-w-[280px] mx-auto relative">
+                <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-purple-400 animate-bounce" />
+                <span className="block text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-1">
+                  Selected Singer
+                </span>
+                <span className="font-heading text-2xl font-extrabold text-purple-400 uppercase tracking-wide">
+                  🎤 {winner}
+                </span>
+              </div>
+
+              <div className="flex gap-2 w-full pt-2">
+                <button
+                  onClick={() => {
+                    setWinner(null);
+                    setRotation(0);
+                  }}
+                  className="flex-1 bg-zinc-900 border border-zinc-800 text-zinc-300 font-bold text-xs py-3 rounded-xl transition cursor-pointer"
+                >
+                  SPIN AGAIN
+                </button>
+                <button
+                  onClick={() => setPassTheMicVisible(false)}
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-xs py-3 rounded-xl transition cursor-pointer"
+                >
+                  START SINGING
+                </button>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div key="controls" className="w-full text-center space-y-4">
+              <button
+                disabled={spinning || candidates.length === 0}
+                onClick={spinWheel}
+                className="w-full bg-gradient-to-r from-purple-600 to-pink-500 hover:opacity-95 text-white font-extrabold tracking-widest rounded-xl py-3.5 shadow-lg shadow-purple-500/10 active:scale-95 transition cursor-pointer disabled:opacity-50"
+              >
+                {spinning ? "SPINNING ROULETTE..." : "SPIN WHEEL"}
+              </button>
+
+              <button
+                onClick={() => setPassTheMicVisible(false)}
+                className="text-zinc-500 hover:text-zinc-300 text-xs font-semibold underline transition cursor-pointer"
+              >
+                Close Panel
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </div>
+  );
+}
