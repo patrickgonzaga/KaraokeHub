@@ -207,3 +207,14 @@ CREATE POLICY "Allow public update on leaderboards" ON leaderboards FOR UPDATE U
 -- Party Events Policy
 CREATE POLICY "Allow public read on party_events" ON party_events FOR SELECT USING (true);
 CREATE POLICY "Allow public insert on party_events" ON party_events FOR INSERT WITH CHECK (true);
+
+-- ----------------------------------------------------
+-- ENABLE REALTIME REPLICATION FOR ALL TABLES
+-- ----------------------------------------------------
+alter publication supabase_realtime add table rooms;
+alter publication supabase_realtime add table room_users;
+alter publication supabase_realtime add table queue_items;
+alter publication supabase_realtime add table chat_messages;
+alter publication supabase_realtime add table notifications;
+alter publication supabase_realtime add table leaderboards;
+alter publication supabase_realtime add table party_events;

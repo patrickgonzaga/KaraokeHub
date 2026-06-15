@@ -188,7 +188,7 @@ export default function ControlPanel({ roomData, activeTab }: ControlPanelProps)
             <button
               type="submit"
               disabled={searchLoading}
-              className="px-6 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-xs rounded-xl hover:opacity-95 active:scale-95 transition cursor-pointer flex items-center justify-center disabled:opacity-50"
+              className="px-6 bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-95 text-white font-bold text-xs rounded-xl active:scale-95 transition cursor-pointer flex items-center justify-center disabled:opacity-50 shadow-md shadow-purple-500/5"
             >
               {searchLoading ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -229,7 +229,7 @@ export default function ControlPanel({ roomData, activeTab }: ControlPanelProps)
                   </div>
                   <button
                     onClick={() => handleAddSong(song)}
-                    className="p-2 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 border border-emerald-500/20 hover:border-emerald-500 hover:scale-105 active:scale-95 rounded-xl transition cursor-pointer"
+                    className="p-2 bg-purple-600/10 hover:bg-purple-600/20 text-purple-400 border border-purple-500/20 hover:border-purple-500 hover:scale-105 active:scale-95 rounded-xl transition cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -245,10 +245,10 @@ export default function ControlPanel({ roomData, activeTab }: ControlPanelProps)
         <section className="flex-1 flex flex-col min-h-0 bg-zinc-950/20 rounded-xl gap-4">
           {/* Host Quick Controller */}
           {isHost && (
-            <div className="glass-panel p-3.5 rounded-xl flex flex-col gap-3.5 border border-emerald-500/15 relative overflow-hidden">
+            <div className="glass-panel p-4 rounded-xl flex flex-col gap-3.5 border border-purple-500/10 relative overflow-hidden">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Mic className="w-4 h-4 text-emerald-400 animate-pulse" />
+                  <Mic className="w-4 h-4 text-purple-400 animate-pulse" />
                   <span className="text-[10px] font-extrabold text-white uppercase tracking-widest">
                     Host DJ Controls
                   </span>
@@ -256,45 +256,51 @@ export default function ControlPanel({ roomData, activeTab }: ControlPanelProps)
                 <div className="flex gap-2">
                   <button
                     onClick={room?.is_playing ? pauseSong : resumeSong}
-                    className="p-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition active:scale-95 cursor-pointer"
+                    className="p-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition active:scale-95 cursor-pointer"
                   >
                     {room?.is_playing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
                   </button>
                   <button
                     onClick={skipSong}
-                    className="p-2 bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700 rounded-lg transition active:scale-95 cursor-pointer"
+                    className="p-2 bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-800 rounded-lg transition active:scale-95 cursor-pointer"
                   >
                     <SkipForward className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => setPassTheMicVisible(true)}
-                    className="p-2 bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-bold text-[10px] tracking-wider uppercase rounded-lg px-3.5 transition active:scale-95 cursor-pointer flex items-center gap-1"
+                    className="p-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-[10px] tracking-wider uppercase rounded-lg px-3.5 transition active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-md shadow-purple-500/10"
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+                    <Sparkles className="w-3.5 h-3.5 text-yellow-300 animate-pulse" />
                     Pass Mic
                   </button>
                 </div>
               </div>
 
               {/* Settings Toggles */}
-              <div className="border-t border-zinc-900/60 pt-3 flex flex-wrap gap-x-4 gap-y-2 text-[10px]">
-                <label className="flex items-center gap-2 cursor-pointer text-zinc-400 hover:text-white transition">
+              <div className="border-t border-zinc-900/60 pt-3 flex flex-wrap gap-x-5 gap-y-2 text-[10px]">
+                <label className="switch-label text-[10px] font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-200 transition-colors">
                   <input
                     type="checkbox"
                     checked={autoScoringEnabled}
                     onChange={(e) => updateRoomSettings({ autoScoringEnabled: e.target.checked })}
-                    className="w-3.5 h-3.5 rounded bg-zinc-950 border border-zinc-800 text-emerald-600 focus:ring-0 cursor-pointer accent-emerald-500"
+                    className="switch-input"
                   />
-                  <span className="font-semibold uppercase tracking-wider">AI Auto-Scoring</span>
+                  <div className="switch-track">
+                    <div className="switch-thumb" />
+                  </div>
+                  <span>AI Auto-Scoring</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer text-zinc-400 hover:text-white transition">
+                <label className="switch-label text-[10px] font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-200 transition-colors">
                   <input
                     type="checkbox"
                     checked={showFreestylePrompt}
                     onChange={(e) => updateRoomSettings({ showFreestylePrompt: e.target.checked })}
-                    className="w-3.5 h-3.5 rounded bg-zinc-950 border border-zinc-800 text-emerald-600 focus:ring-0 cursor-pointer accent-emerald-500"
+                    className="switch-input"
                   />
-                  <span className="font-semibold uppercase tracking-wider">Freestyle Prompts</span>
+                  <div className="switch-track">
+                    <div className="switch-thumb" />
+                  </div>
+                  <span>Freestyle Prompts</span>
                 </label>
               </div>
             </div>

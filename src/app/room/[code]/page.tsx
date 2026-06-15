@@ -10,20 +10,39 @@ import Link from "next/link";
 
 export default function RoomPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = use(params);
-  const { userId, nickname, initializeClient, setNickname, pendingRoomName } = useRoomStore();
+  const { userId, nickname, initializeClient, setNickname, pendingRoomName, setTVMode } = useRoomStore();
 
   const [nicknameInput, setNicknameInput] = useState("");
   const [hasPrompted, setHasPrompted] = useState(false);
 
-  // Initialize Zustand client details
+  // Initialize Zustand client details & check for TV URL param
   useEffect(() => {
     initializeClient();
+    
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("tv") === "true" || urlParams.get("mode") === "tv") {
+        setNickname("TV Display");
+        setTVMode(true);
+      }
+    }
+    
     setHasPrompted(true);
-  }, [initializeClient]);
+  }, [initializeClient, setNickname, setTVMode]);
 
   // Load the active Room connection
   const roomData = useRoom(code, pendingRoomName || undefined);
-  const { joinRoom, loading, error, room } = roomData;
+  const { joinRoom, loading, error, room, users } = roomData;
+
+  // Auto-join if nickname is already set but user is not in room_users
+  useEffect(() => {
+    if (room && nickname && !loading && users) {
+      const alreadyJoined = users.some((u) => u.nickname === nickname);
+      if (!alreadyJoined) {
+        joinRoom(nickname);
+      }
+    }
+  }, [room, nickname, loading, users, joinRoom]);
 
   const handleJoinSubmit = (e: React.FormEvent) => {
     e.preventDefault();

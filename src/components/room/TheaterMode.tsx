@@ -383,7 +383,7 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
 
               {/* Song info badge top-left */}
               <div className="absolute top-2 left-2 z-20 flex items-center gap-2 bg-black/75 backdrop-blur-md py-1 px-2.5 rounded-lg border border-white/10 shadow pointer-events-none">
-                <Disc className={`w-3.5 h-3.5 text-emerald-400 ${room?.is_playing ? "animate-spin-slow" : ""}`} />
+                <Disc className={`w-3.5 h-3.5 text-purple-400 ${room?.is_playing ? "animate-spin-slow" : ""}`} />
                 <span className="text-[10px] font-bold text-white truncate max-w-[180px]">
                   {currentItem.song?.title}
                 </span>
@@ -402,8 +402,8 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
             <p className="text-zinc-400 text-xs font-semibold tracking-widest uppercase">
               STAGE READY
             </p>
-            <p className="text-[10px] text-zinc-650 mt-1 max-w-[200px]">
-              Search for a song, add it to the queue, then press the <span className="text-emerald-400 font-bold">▶ Play</span> button next to it!
+            <p className="text-[10px] text-zinc-500 mt-1 max-w-[200px]">
+              Search for a song, add it to the queue, then press the <span className="text-purple-400 font-bold">▶ Play</span> button next to it!
             </p>
           </div>
         )}
@@ -455,7 +455,7 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
                 transition={{ type: "spring", stiffness: 120, damping: 15 }}
                 className="space-y-6 max-w-lg"
               >
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-extrabold uppercase tracking-widest animate-pulse">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px] font-extrabold uppercase tracking-widest animate-pulse">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>AI Performance Rating</span>
                 </div>
@@ -470,7 +470,7 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
                 </div>
 
                 {/* Rating circle */}
-                <div className="relative w-36 h-36 mx-auto flex items-center justify-center rounded-full border-4 border-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.15)] bg-zinc-950">
+                <div className="relative w-36 h-36 mx-auto flex items-center justify-center rounded-full border-4 border-purple-500/20 shadow-[0_0_30px_rgba(124,58,237,0.15)] bg-zinc-950">
                   <div className="text-center">
                     <span className="font-heading text-5xl font-extrabold text-white">
                       {activeAIScore.score}
@@ -527,7 +527,7 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
             {/* In-Frame Mini Stats Overlay */}
             <div className="absolute top-4 left-4 z-20 flex gap-2 pointer-events-none select-none">
               <div className="bg-black/75 backdrop-blur-md py-1.5 px-3 rounded-xl border border-white/5 shadow flex items-center gap-2 text-xs">
-                <Disc className="w-4 h-4 text-emerald-400 animate-spin-slow" />
+                <Disc className="w-4 h-4 text-purple-400 animate-spin-slow" />
                 <div>
                   <span className="font-bold text-white block max-w-[180px] truncate">
                     {currentItem.song?.title}
@@ -544,7 +544,7 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
               <div className="flex items-center gap-4">
                 <button
                   onClick={room?.is_playing ? pauseSong : resumeSong}
-                  className="p-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white transition cursor-pointer"
+                  className="p-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-white transition cursor-pointer"
                 >
                   {room?.is_playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                 </button>

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import { safeUUID } from "../lib/uuid";
 import { supabase } from "./useSupabase";
 import { useRoomStore } from "../store/useRoomStore";
 import {
@@ -302,7 +303,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
         }
 
         const newNotif: RoomNotification = {
-          id: crypto.randomUUID(),
+          id: safeUUID(),
           room_id: "demo-room-uuid",
           type: "user_joined",
           content: `${displayNickname} joined the room`,
@@ -310,7 +311,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
         };
 
         const newEvent: PartyEvent = {
-          id: crypto.randomUUID(),
+          id: safeUUID(),
           room_id: "demo-room-uuid",
           event_type: "joined",
           nickname: displayNickname,
@@ -421,7 +422,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
         );
 
         const newQueueItem: QueueItem = {
-          id: crypto.randomUUID(),
+          id: safeUUID(),
           room_id: "demo-room-uuid",
           song_id: mockSongId,
           requested_by_nickname: activeNickname,
@@ -438,7 +439,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
 
         // Add Notification & Feed
         demoStateRef.current.notifications.push({
-          id: crypto.randomUUID(),
+          id: safeUUID(),
           room_id: "demo-room-uuid",
           type: "song_added",
           content: `${activeNickname} added ${songData.title}`,
@@ -446,7 +447,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
         });
 
         demoStateRef.current.partyEvents.push({
-          id: crypto.randomUUID(),
+          id: safeUUID(),
           room_id: "demo-room-uuid",
           event_type: "added_song",
           nickname: activeNickname,
@@ -463,7 +464,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
           userLb.score_value = Number(userLb.score_value) + 1;
         } else {
           demoStateRef.current.leaderboard.push({
-            id: crypto.randomUUID(),
+            id: safeUUID(),
             room_id: "demo-room-uuid",
             nickname: activeNickname,
             metric_type: "most_songs_added",
@@ -586,7 +587,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
 
           // Push feed
           demoStateRef.current.partyEvents.push({
-            id: crypto.randomUUID(),
+            id: safeUUID(),
             room_id: "demo-room-uuid",
             event_type: "added_song",
             nickname: activeNickname,
@@ -655,7 +656,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
           const currentItem = demoStateRef.current.queue.find((q) => q.id === itemId);
           if (currentItem) {
             demoStateRef.current.notifications.push({
-              id: crypto.randomUUID(),
+              id: safeUUID(),
               room_id: "demo-room-uuid",
               type: "mic_passed",
               content: `🎤 ${currentItem.requested_by_nickname} is now singing "${currentItem.song?.title}"`,
@@ -790,7 +791,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
         if (nextItem) nextItem.status = "playing";
 
         demoStateRef.current.partyEvents.push({
-          id: crypto.randomUUID(),
+          id: safeUUID(),
           room_id: "demo-room-uuid",
           event_type: "skipped",
           nickname: activeNickname,
@@ -851,7 +852,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
 
       if (isDemoMode) {
         const newMsg: ChatMessage = {
-          id: crypto.randomUUID(),
+          id: safeUUID(),
           room_id: "demo-room-uuid",
           user_id: activeUserId,
           nickname: activeNickname,
@@ -920,7 +921,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
           entry.score_value = Number(entry.score_value) + 1;
         } else {
           demoStateRef.current.leaderboard.push({
-            id: crypto.randomUUID(),
+            id: safeUUID(),
             room_id: "demo-room-uuid",
             nickname: activeNickname,
             metric_type: "most_reactions",
@@ -1002,7 +1003,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
       if (isDemoMode) {
         // Push Score to local database
         const newNotif: RoomNotification = {
-          id: crypto.randomUUID(),
+          id: safeUUID(),
           room_id: "demo-room-uuid",
           type: "score_submitted",
           content: `⭐ ${activeNickname} rated ${singer}'s performance: ${total}/100!`,
@@ -1010,7 +1011,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
         };
 
         const newEvent: PartyEvent = {
-          id: crypto.randomUUID(),
+          id: safeUUID(),
           room_id: "demo-room-uuid",
           event_type: "scored",
           nickname: singer,
@@ -1029,7 +1030,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
           entry.score_value = Math.round((Number(entry.score_value) + total) / 2);
         } else {
           demoStateRef.current.leaderboard.push({
-            id: crypto.randomUUID(),
+            id: safeUUID(),
             room_id: "demo-room-uuid",
             nickname: singer,
             metric_type: "highest_average_score",
@@ -1147,6 +1148,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
         "postgres_changes",
         { event: "*", schema: "public", table: "rooms", filter: `id=eq.${roomId}` },
         (payload: any) => {
+          console.log("Realtime DB update [rooms]:", payload);
           if (payload.new) {
             setRoom((prev) => (prev ? { ...prev, ...payload.new } : payload.new));
           }
@@ -1155,7 +1157,8 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "room_users", filter: `room_id=eq.${roomId}` },
-        () => {
+        (payload: any) => {
+          console.log("Realtime DB update [room_users]:", payload);
           supabase
             .from("room_users")
             .select("*")
@@ -1169,7 +1172,8 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "queue_items", filter: `room_id=eq.${roomId}` },
-        () => {
+        (payload: any) => {
+          console.log("Realtime DB update [queue_items]:", payload);
           supabase
             .from("queue_items")
             .select("*, song:songs(*)")
@@ -1186,6 +1190,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "chat_messages", filter: `room_id=eq.${roomId}` },
         (payload) => {
+          console.log("Realtime DB update [chat_messages]:", payload);
           setMessages((prev) => [...prev, payload.new as ChatMessage]);
         }
       )
@@ -1199,7 +1204,8 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "leaderboards", filter: `room_id=eq.${roomId}` },
-        () => {
+        (payload: any) => {
+          console.log("Realtime DB update [leaderboards]:", payload);
           supabase
             .from("leaderboards")
             .select("*")
@@ -1280,7 +1286,8 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
       });
 
     // Connect channel
-    channel.subscribe((status) => {
+    channel.subscribe((status, err) => {
+      console.log(`Supabase Realtime Channel Status for room:${roomCode}:`, status, err);
       if (status === "SUBSCRIBED" && nickname) {
         channel.track({ online_at: new Date().toISOString() });
       }
@@ -1347,14 +1354,14 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
         // Mock demo database logging
         const total = score;
         demoStateRef.current.notifications.push({
-          id: crypto.randomUUID(),
+          id: safeUUID(),
           room_id: "demo-room-uuid",
           type: "score_submitted",
           content: `⭐ AI Scorer rated ${singer}'s performance: ${total}/100!`,
           created_at: new Date().toISOString(),
         });
         demoStateRef.current.partyEvents.push({
-          id: crypto.randomUUID(),
+          id: safeUUID(),
           room_id: "demo-room-uuid",
           event_type: "scored",
           nickname: singer,
@@ -1370,7 +1377,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
           entry.score_value = Math.round((Number(entry.score_value) + total) / 2);
         } else {
           demoStateRef.current.leaderboard.push({
-            id: crypto.randomUUID(),
+            id: safeUUID(),
             room_id: "demo-room-uuid",
             nickname: singer,
             metric_type: "highest_average_score",
