@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { safeUUID } from "../lib/uuid";
 
 export interface FloatingReaction {
   id: string;
@@ -67,7 +68,7 @@ export const useRoomStore = create<RoomState>((set) => ({
 
     let savedUserId = localStorage.getItem("karaokehub_user_id");
     if (!savedUserId) {
-      savedUserId = crypto.randomUUID();
+      savedUserId = safeUUID();
       localStorage.setItem("karaokehub_user_id", savedUserId);
     }
 
@@ -125,7 +126,7 @@ export const useRoomStore = create<RoomState>((set) => ({
 
   triggerFloatingReaction: (emoji) => {
     const newReaction: FloatingReaction = {
-      id: crypto.randomUUID(),
+      id: safeUUID(),
       emoji,
       twist: Math.floor(Math.random() * 40) - 20, // -20deg to 20deg
       offset: Math.floor(Math.random() * 60) + 20, // 20% to 80% horizontal offset

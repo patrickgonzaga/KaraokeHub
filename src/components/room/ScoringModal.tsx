@@ -41,12 +41,12 @@ export default function ScoringModal({ roomData }: ScoringModalProps) {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="w-full max-w-sm glass-panel p-6 rounded-2xl border border-emerald-500/30 text-center space-y-5 relative overflow-hidden"
+          className="w-full max-w-sm glass-panel p-6 rounded-2xl border border-purple-500/20 text-center space-y-5 relative overflow-hidden"
         >
           {/* Top accent */}
-          <div className="absolute top-0 left-0 w-full h-[3px] bg-emerald-500"></div>
+          <div className="absolute top-0 left-0 w-full h-[3px] bg-purple-500"></div>
 
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-extrabold uppercase tracking-widest">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[9px] font-extrabold uppercase tracking-widest">
             <Sparkles className="w-3.5 h-3.5" />
             <span>AI Vocal Scorer</span>
           </div>
@@ -55,12 +55,12 @@ export default function ScoringModal({ roomData }: ScoringModalProps) {
             <h3 className="font-heading text-xl text-white uppercase tracking-wider">
               {activeAIScore.singer}
             </h3>
-            <p className="text-zinc-500 text-[10px] italic truncate">
+            <p className="text-zinc-550 text-[10px] italic truncate">
               "{activeAIScore.songTitle}"
             </p>
           </div>
 
-          <div className="w-24 h-24 mx-auto flex items-center justify-center rounded-full border-4 border-emerald-500/20 bg-zinc-950 shadow-[0_0_20px_rgba(16,185,129,0.15)]">
+          <div className="w-24 h-24 mx-auto flex items-center justify-center rounded-full border-4 border-purple-500/20 bg-zinc-950 shadow-[0_0_20px_rgba(124,58,237,0.15)]">
             <span className="font-heading text-3xl font-extrabold text-white">
               {activeAIScore.score}%
             </span>
@@ -123,10 +123,10 @@ export default function ScoringModal({ roomData }: ScoringModalProps) {
         initial={{ opacity: 0, y: 30, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 20, scale: 0.95 }}
-        className="w-full max-w-md glass-panel p-6 md:p-8 rounded-2xl border border-purple-500/35 relative overflow-hidden"
+        className="w-full max-w-md glass-panel p-6 md:p-8 rounded-2xl border border-purple-500/20 relative overflow-hidden"
       >
         {/* Glow header banner */}
-        <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500"></div>
+        <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-500"></div>
 
         <AnimatePresence mode="wait">
           {!submitted ? (
@@ -179,14 +179,14 @@ export default function ScoringModal({ roomData }: ScoringModalProps) {
                 <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
                   Total Crowd Score
                 </span>
-                <span className="font-heading text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400">
+                <span className="font-heading text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-indigo-400 to-purple-400">
                   {totalCalculatedScore} / 100
                 </span>
               </div>
 
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold tracking-wider rounded-xl py-3.5 hover:opacity-95 active:scale-[0.98] transition cursor-pointer flex items-center justify-center gap-2"
+                className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-95 text-white font-bold tracking-wider rounded-xl py-3.5 active:scale-[0.98] transition cursor-pointer flex items-center justify-center gap-2 shadow-md shadow-purple-500/10"
               >
                 <Star className="w-4.5 h-4.5" />
                 SUBMIT RATING

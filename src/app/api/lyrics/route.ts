@@ -148,7 +148,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!track.trim()) {
-      return NextResponse.json({ synced: false, lyrics: "Lyrics not found.", source: "none" });
+      return NextResponse.json({ synced: false, lyrics: null, source: "none" });
     }
 
     // Call LRCLIB Search API
@@ -169,7 +169,7 @@ export async function GET(request: NextRequest) {
 
     const results = await response.json();
     if (results.length === 0) {
-      return NextResponse.json({ synced: false, lyrics: "Lyrics not found. Time to freestyle!", source: "api_empty" });
+      return NextResponse.json({ synced: false, lyrics: null, source: "api_empty" });
     }
 
     // Find the first result containing synced lyrics, otherwise plain lyrics
@@ -191,12 +191,12 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ synced: false, lyrics: "Lyrics not found.", source: "api_none" });
+    return NextResponse.json({ synced: false, lyrics: null, source: "api_none" });
   } catch (error: any) {
     console.error("Lyrics retrieval error:", error);
     return NextResponse.json({
       synced: false,
-      lyrics: "Lyrics could not be loaded due to a network connection error.",
+      lyrics: null,
       source: "error"
     });
   }

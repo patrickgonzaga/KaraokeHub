@@ -90,7 +90,7 @@ export default function PassTheMic({ roomData }: PassTheMicProps) {
         className="w-full max-w-md glass-panel p-6 md:p-8 rounded-2xl border border-purple-500/25 relative overflow-hidden flex flex-col items-center"
       >
         {/* Top styling band */}
-        <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-purple-500 to-pink-500"></div>
+        <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-purple-600 to-indigo-600"></div>
 
         {/* Header */}
         <div className="text-center mb-6">
@@ -208,7 +208,7 @@ export default function PassTheMic({ roomData }: PassTheMicProps) {
               <button
                 disabled={spinning || candidates.length === 0}
                 onClick={spinWheel}
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-500 hover:opacity-95 text-white font-extrabold tracking-widest rounded-xl py-3.5 shadow-lg shadow-purple-500/10 active:scale-95 transition cursor-pointer disabled:opacity-50"
+                className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-95 text-white font-extrabold tracking-widest rounded-xl py-3.5 shadow-lg shadow-purple-500/10 active:scale-95 transition cursor-pointer disabled:opacity-50"
               >
                 {spinning ? "SPINNING ROULETTE..." : "SPIN WHEEL"}
               </button>

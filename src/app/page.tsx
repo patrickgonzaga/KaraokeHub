@@ -6,6 +6,7 @@ import { useRoomStore } from "../store/useRoomStore";
 import { supabase } from "../hooks/useSupabase";
 import { motion, AnimatePresence } from "framer-motion";
 import { Music, Plus, LogIn, Sparkles, Tv, HelpCircle, Users } from "lucide-react";
+import { safeUUID } from "../lib/uuid";
 
 // Check if we are running in local offline demo mode
 const isDemoMode =
@@ -65,7 +66,7 @@ export default function Home() {
     setErrorMsg(null);
 
     const generatedCode = generateRoomCode();
-    const generatedHostToken = crypto.randomUUID();
+    const generatedHostToken = safeUUID();
 
     // Store user choices locally
     setNickname(nicknameInput.trim());
