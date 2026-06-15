@@ -299,5 +299,6 @@ Falls back to a local pre-timed LRC database for popular songs. Returns `{ "lyri
 This project is private and part of the **PatCommandCenter** monorepo.
 
 ---
+<img width="1024" height="1536" alt="ChatGPT Image Jun 15, 2026, 03_19_53 PM" src="https://github.com/user-attachments/assets/bc9d9958-9d3c-4f35-ad0f-7e355c0e47bd" />
 
 *Built with ❤️ for karaoke nights that actually slap.*
