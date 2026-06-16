@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, useRef } from "react";
 import { useRoomStore } from "../../../store/useRoomStore";
 import { useRoom } from "../../../hooks/useRoom";
 import RoomLayout from "../../../components/room/RoomLayout";
@@ -14,6 +14,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
   const [nicknameInput, setNicknameInput] = useState("");
   const [hasPrompted, setHasPrompted] = useState(false);
+  const hasJoinedRef = useRef(false);
 
   // Initialize Zustand client details & check for TV URL param
   useEffect(() => {
@@ -36,13 +37,11 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
   // Auto-join if nickname is already set but user is not in room_users
   useEffect(() => {
-    if (room && nickname && !loading && users) {
-      const alreadyJoined = users.some((u) => u.nickname === nickname);
-      if (!alreadyJoined) {
-        joinRoom(nickname);
-      }
+    if (room && nickname && !loading && !hasJoinedRef.current) {
+      hasJoinedRef.current = true;
+      joinRoom(nickname);
     }
-  }, [room, nickname, loading, users, joinRoom]);
+  }, [room, nickname, loading, joinRoom]);
 
   const handleJoinSubmit = (e: React.FormEvent) => {
     e.preventDefault();

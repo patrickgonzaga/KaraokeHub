@@ -19,6 +19,64 @@ declare global {
   }
 }
 
+// Deterministic avatar generator based on nickname
+function getAvatarData(nickname: string) {
+  const emojis = ["🎤", "🎵", "🎸", "🎧", "🎹", "🎶", "🌟", "🔥", "🦄", "🐼", "🦊", "🐱", "🦁", "🐨"];
+  const gradients = [
+    "from-purple-500 to-indigo-500",
+    "from-blue-500 to-cyan-500",
+    "from-pink-500 to-rose-500",
+    "from-emerald-500 to-teal-500",
+    "from-amber-500 to-orange-500",
+    "from-red-500 to-pink-500",
+  ];
+  
+  let hash = 0;
+  for (let i = 0; i < nickname.length; i++) {
+    hash = nickname.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  hash = Math.abs(hash);
+  
+  const emoji = emojis[hash % emojis.length];
+  const gradient = gradients[hash % gradients.length];
+  const initials = nickname.replace(/[^a-zA-Z0-9]/g, "").slice(0, 2).toUpperCase() || "🎤";
+  
+  return { emoji, gradient, initials };
+}
+
+// Safe global script loader for YouTube Iframe API to prevent double script tag injection
+let ytApiPromise: Promise<void> | null = null;
+function loadYoutubeApi(): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  if (window.YT && window.YT.Player) return Promise.resolve();
+  if (ytApiPromise) return ytApiPromise;
+
+  ytApiPromise = new Promise<void>((resolve) => {
+    const existingScript = document.querySelector('script[src="https://www.youtube.com/iframe_api"]');
+    if (!existingScript) {
+      const tag = document.createElement("script");
+      tag.src = "https://www.youtube.com/iframe_api";
+      const firstScriptTag = document.getElementsByTagName("script")[0];
+      firstScriptTag?.parentNode?.insertBefore(tag, firstScriptTag);
+    }
+
+    const previousReady = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      if (previousReady) previousReady();
+      resolve();
+    };
+    
+    const checkInterval = setInterval(() => {
+      if (window.YT && window.YT.Player) {
+        clearInterval(checkInterval);
+        resolve();
+      }
+    }, 100);
+  });
+
+  return ytApiPromise;
+}
+
 export default function TheaterMode({ roomData }: TheaterModeProps) {
   const {
     room,
@@ -30,6 +88,8 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
     submitScore,
     completeSongWithAIScore,
     clearAIScore,
+    startManualScoring,
+    endManualScoring,
   } = roomData;
 
   const {
@@ -43,6 +103,8 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
     hostToken,
     activeAIScore,
   } = useRoomStore();
+
+  const [showIntroCard, setShowIntroCard] = useState(false);
 
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
   const [currentLyricIdx, setCurrentLyricIdx] = useState(-1);
@@ -58,6 +120,19 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
 
   // Find currently playing song in queue
   const currentItem = queue.find((q) => q.status === "playing" || q.id === room?.current_song_id);
+
+  // Monitor song changes to display intro card
+  useEffect(() => {
+    if (currentItem?.id) {
+      setShowIntroCard(true);
+      const timer = setTimeout(() => {
+        setShowIntroCard(false);
+      }, 8000);
+      return () => clearTimeout(timer);
+    } else {
+      setShowIntroCard(false);
+    }
+  }, [currentItem?.id]);
 
   // 1. Fetch and Parse Lyrics
   useEffect(() => {
@@ -179,6 +254,8 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
 
   // 3. YouTube Player Setup (works in BOTH TV Mode and controller mode)
   useEffect(() => {
+    let mounted = true;
+
     if (!currentItem?.song?.youtube_id) {
       // Clear player refs if no song
       if (playerRef.current) {
@@ -189,7 +266,8 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
     }
 
     const initPlayer = () => {
-      if (!window.YT) return;
+      if (!mounted) return;
+      if (!window.YT || !window.YT.Player) return;
 
       // Destroy old player instance if exists
       if (playerRef.current) {
@@ -198,6 +276,15 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
       }
 
       const targetIframeId = isTVMode ? "youtube-player-tv" : "youtube-player-ctrl";
+      const container = document.getElementById(targetIframeId);
+      
+      // Retry in the next tick if target container is not yet mounted in DOM
+      if (!container) {
+        setTimeout(() => {
+          if (mounted) initPlayer();
+        }, 50);
+        return;
+      }
 
       playerRef.current = new window.YT.Player(targetIframeId, {
         videoId: currentItem.song?.youtube_id,
@@ -214,6 +301,7 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
         },
         events: {
           onReady: (event: any) => {
+            if (!mounted) return;
             if (room?.is_playing) {
               event.target.playVideo();
             }
@@ -222,6 +310,7 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
             }
           },
           onStateChange: (event: any) => {
+            if (!mounted) return;
             // YT.PlayerState.ENDED = 0
             if (event.data === 0) {
               handleSongFinished();
@@ -231,21 +320,12 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
       });
     };
 
-    // Load API dynamically if needed
-    if (!window.YT) {
-      const tag = document.createElement("script");
-      tag.src = "https://www.youtube.com/iframe_api";
-      const firstScriptTag = document.getElementsByTagName("script")[0];
-      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-
-      window.onYouTubeIframeAPIReady = () => {
-        initPlayer();
-      };
-    } else {
+    loadYoutubeApi().then(() => {
       initPlayer();
-    }
+    });
 
     return () => {
+      mounted = false;
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [isTVMode, currentItem?.song?.youtube_id]);
@@ -323,13 +403,21 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
       }, 10000);
     } else {
       // Manual scoring
-      setScoringQueueItemId(currentItem.id);
-      setScoringModalVisible(true);
+      if (typeof startManualScoring === "function") {
+        startManualScoring(currentItem.id);
+      } else {
+        setScoringQueueItemId(currentItem.id);
+        setScoringModalVisible(true);
+      }
 
       // Auto close/skip after 15 seconds
       setTimeout(() => {
-        setScoringModalVisible(false);
-        setScoringQueueItemId(null);
+        if (typeof endManualScoring === "function") {
+          endManualScoring();
+        } else {
+          setScoringModalVisible(false);
+          setScoringQueueItemId(null);
+        }
         skipSong();
       }, 15000);
     }
@@ -382,12 +470,12 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
               </div>
 
               {/* Song info badge top-left */}
-              <div className="absolute top-2 left-2 z-20 flex items-center gap-2 bg-black/75 backdrop-blur-md py-1 px-2.5 rounded-lg border border-white/10 shadow pointer-events-none">
+              <div className="absolute top-2 left-2 z-20 flex items-center gap-2 bg-zinc-950/85 backdrop-blur-md py-1.5 px-3 rounded-lg border border-zinc-800 shadow pointer-events-none">
                 <Disc className={`w-3.5 h-3.5 text-purple-400 ${room?.is_playing ? "animate-spin-slow" : ""}`} />
-                <span className="text-[10px] font-bold text-white truncate max-w-[180px]">
+                <span className="text-[10px] font-bold text-white truncate max-w-[160px]">
                   {currentItem.song?.title}
                 </span>
-                <span className="text-[9px] text-zinc-400 font-semibold border-l border-zinc-700 pl-2 uppercase">
+                <span className="text-[9px] text-purple-400 font-bold border-l border-zinc-800 pl-2 uppercase">
                   {currentItem.requested_by_nickname}
                 </span>
               </div>
@@ -525,19 +613,66 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
             )}
 
             {/* In-Frame Mini Stats Overlay */}
-            <div className="absolute top-4 left-4 z-20 flex gap-2 pointer-events-none select-none">
-              <div className="bg-black/75 backdrop-blur-md py-1.5 px-3 rounded-xl border border-white/5 shadow flex items-center gap-2 text-xs">
-                <Disc className="w-4 h-4 text-purple-400 animate-spin-slow" />
-                <div>
-                  <span className="font-bold text-white block max-w-[180px] truncate">
-                    {currentItem.song?.title}
-                  </span>
-                  <span className="text-[10px] text-zinc-500 font-bold block uppercase mt-0.5">
-                    Singer: {currentItem.requested_by_nickname}
-                  </span>
+            {!showIntroCard && (
+              <div className="absolute top-4 left-4 z-20 flex gap-2 pointer-events-none select-none">
+                <div className="bg-zinc-950/80 backdrop-blur-md py-2 px-3.5 rounded-xl border border-zinc-800 shadow-xl flex items-center gap-2.5 text-xs">
+                  <Disc className="w-4 h-4 text-purple-400 animate-spin-slow" />
+                  <div>
+                    <span className="font-bold text-white block max-w-[200px] truncate">
+                      {currentItem.song?.title}
+                    </span>
+                    <span className="text-[10px] text-zinc-400 font-semibold block mt-0.5">
+                      Added by: <span className="text-purple-400 font-bold uppercase">{currentItem.requested_by_nickname}</span>
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* Song Intro Card Overlay (TV Mode only) */}
+            <AnimatePresence>
+              {showIntroCard && currentItem && !activeAIScore && (
+                <motion.div
+                  initial={{ x: "-100%", opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: "-50%", opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 100, damping: 15 }}
+                  className="absolute left-6 top-6 z-40 bg-zinc-950/85 backdrop-blur-md px-6 py-5 rounded-2xl border border-purple-500/20 shadow-2xl flex items-center gap-4 max-w-md select-none"
+                >
+                  {(() => {
+                    const requesterNickname = currentItem.requested_by_nickname || "Guest";
+                    const avatar = getAvatarData(requesterNickname);
+                    return (
+                      <>
+                        {/* Requester Avatar */}
+                        <div className={`w-14 h-14 rounded-full bg-gradient-to-tr ${avatar.gradient} flex items-center justify-center text-lg font-bold text-white relative shadow-md flex-shrink-0`}>
+                          <span>{avatar.initials}</span>
+                          <span className="absolute -bottom-1 -right-1 text-xs bg-black/60 rounded-full px-0.5">{avatar.emoji}</span>
+                        </div>
+                        {/* Song Metadata */}
+                        <div className="flex-1 min-w-0">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/15 text-[8px] font-extrabold uppercase tracking-widest mb-1.5 animate-pulse">
+                            <Sparkles className="w-2.5 h-2.5" />
+                            <span>UP NEXT</span>
+                          </span>
+                          <h3 className="font-heading text-lg font-extrabold text-white truncate leading-tight drop-shadow-md">
+                            {currentItem.song?.title}
+                          </h3>
+                          {currentItem.song?.artist && (
+                            <p className="text-zinc-400 text-xs font-semibold mt-0.5 truncate uppercase tracking-wider">
+                              {currentItem.song?.artist}
+                            </p>
+                          )}
+                          <p className="text-[10px] text-zinc-500 mt-2 font-medium">
+                            Singing: <span className="text-purple-400 font-bold uppercase">{requesterNickname}</span>
+                          </p>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* TV Player Controls (Bottom strip, only shows on hover) */}
             <div className="absolute bottom-0 inset-x-0 z-30 py-3 px-6 bg-gradient-to-t from-black/95 to-transparent flex items-center justify-between pointer-events-auto opacity-0 hover:opacity-100 transition-opacity duration-300">

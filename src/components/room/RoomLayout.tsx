@@ -10,15 +10,18 @@ import { motion } from "framer-motion";
 import { Tv, Phone, LogOut, ChevronRight, Share2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { supabase } from "../../hooks/useSupabase";
 
 interface RoomLayoutProps {
   roomData: ReturnType<typeof useRoom>;
 }
 
 export default function RoomLayout({ roomData }: RoomLayoutProps) {
-  const { isTVMode, setTVMode, activeTab, setActiveTab, nickname } = useRoomStore();
+  const { isTVMode, setTVMode, activeTab, setActiveTab, nickname, hostToken, setHostToken, userId } = useRoomStore();
   const { room, users, queue } = roomData;
   const [showShareToast, setShowShareToast] = useState(false);
+
+  const isHost = room?.host_token === hostToken;
 
   const handleShare = () => {
     if (typeof window === "undefined") return;
@@ -34,6 +37,34 @@ export default function RoomLayout({ roomData }: RoomLayoutProps) {
       navigator.clipboard.writeText(shareUrl);
       setShowShareToast(true);
       setTimeout(() => setShowShareToast(false), 2500);
+    }
+  };
+
+  const handleClaimHost = async () => {
+    if (!room) return;
+    
+    // 1. Claim in local store & localStorage
+    setHostToken(room.host_token);
+    
+    // 2. Update DB
+    if (userId) {
+      try {
+        // Demote existing hosts to guests first (optional but clean)
+        await supabase
+          .from("room_users")
+          .update({ role: "guest" })
+          .eq("room_id", room.id)
+          .eq("role", "host");
+
+        // Promote current user to host
+        await supabase
+          .from("room_users")
+          .update({ role: "host" })
+          .eq("room_id", room.id)
+          .eq("id", userId);
+      } catch (err) {
+        console.error("Error promoting user to host in DB:", err);
+      }
     }
   };
 
@@ -94,6 +125,15 @@ export default function RoomLayout({ roomData }: RoomLayoutProps) {
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">
+          {!isHost && (
+            <button
+              onClick={handleClaimHost}
+              className="flex items-center gap-1.5 bg-amber-600/10 hover:bg-amber-600 hover:text-white border border-amber-500/20 hover:border-amber-500 text-amber-400 font-bold text-xs px-3.5 py-2.5 rounded-xl transition cursor-pointer"
+            >
+              <span>👑 Claim Host</span>
+            </button>
+          )}
+
           <button
             onClick={handleShare}
             className="flex items-center gap-1.5 bg-zinc-950/60 hover:bg-zinc-900 text-zinc-300 font-semibold text-xs px-3.5 py-2.5 rounded-xl border border-zinc-800 transition cursor-pointer relative"

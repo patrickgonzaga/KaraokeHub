@@ -42,6 +42,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
 
   // References for active real-time channel
   const channelRef = useRef<any>(null);
+  const isJoiningRef = useRef(false);
 
   // ---------------------------------------------------------------------------
   // OFFLINE / DEMO MODE MOCK STATE & ACTIONS
@@ -280,7 +281,8 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
 
   const joinRoom = useCallback(
     async (joinNickname: string) => {
-      if (!userId) return;
+      if (!userId || isJoiningRef.current) return;
+      isJoiningRef.current = true;
 
       const displayNickname = joinNickname.trim();
       setNickname(displayNickname);
@@ -322,6 +324,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
         demoStateRef.current.notifications.push(newNotif);
         demoStateRef.current.partyEvents.push(newEvent);
         updateDemoState();
+        isJoiningRef.current = false;
         return;
       }
 
@@ -335,17 +338,18 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
 
         if (roomErr || !dbRoom) throw new Error("Room not found");
 
-        // Check if user already joined
+        // Check if user already joined by id
         const { data: existingUser } = await supabase
           .from("room_users")
           .select("id")
           .eq("room_id", dbRoom.id)
-          .eq("nickname", displayNickname)
+          .eq("id", userId)
           .maybeSingle();
 
         if (!existingUser) {
-          // Add user
+          // Add user using userId as primary key id
           await supabase.from("room_users").insert({
+            id: userId,
             room_id: dbRoom.id,
             nickname: displayNickname,
             role: "guest",
@@ -367,17 +371,19 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
             details: "joined the room",
           });
         } else {
-          // Set user to online
+          // Set user to online and update nickname if changed
           await supabase
             .from("room_users")
-            .update({ is_online: true, last_seen_at: new Date().toISOString() })
-            .eq("id", existingUser.id);
+            .update({ nickname: displayNickname, is_online: true, last_seen_at: new Date().toISOString() })
+            .eq("id", userId);
         }
 
         // Fetch room data in background to reflect joined user immediately
-        fetchRoomData(true);
+        await fetchRoomData(true);
       } catch (err: any) {
         console.error("Join Room error:", err);
+      } finally {
+        isJoiningRef.current = false;
       }
     },
     [roomCode, userId, setNickname, updateDemoState, fetchRoomData]
@@ -1257,6 +1263,19 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
       setActiveAIScore(null);
     });
 
+    channel.on("broadcast", { event: "manual_scoring_start" }, (payload) => {
+      const { queueItemId } = payload.payload;
+      const { setScoringQueueItemId, setScoringModalVisible } = useRoomStore.getState();
+      setScoringQueueItemId(queueItemId);
+      setScoringModalVisible(true);
+    });
+
+    channel.on("broadcast", { event: "manual_scoring_end" }, () => {
+      const { setScoringQueueItemId, setScoringModalVisible } = useRoomStore.getState();
+      setScoringQueueItemId(null);
+      setScoringModalVisible(false);
+    });
+
     // 3. Track Presence (Who is online right now)
     channel
       .on("presence", { event: "sync" }, () => {
@@ -1486,6 +1505,34 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
     }
   }, []);
 
+  const startManualScoring = useCallback((queueItemId: string) => {
+    const { setScoringQueueItemId, setScoringModalVisible } = useRoomStore.getState();
+    setScoringQueueItemId(queueItemId);
+    setScoringModalVisible(true);
+
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: "broadcast",
+        event: "manual_scoring_start",
+        payload: { queueItemId },
+      });
+    }
+  }, []);
+
+  const endManualScoring = useCallback(() => {
+    const { setScoringQueueItemId, setScoringModalVisible } = useRoomStore.getState();
+    setScoringQueueItemId(null);
+    setScoringModalVisible(false);
+
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: "broadcast",
+        event: "manual_scoring_end",
+        payload: {},
+      });
+    }
+  }, []);
+
   return {
     room,
     users,
@@ -1512,5 +1559,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
     updateRoomSettings,
     completeSongWithAIScore,
     clearAIScore,
+    startManualScoring,
+    endManualScoring,
   };
 }

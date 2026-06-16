@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRoom } from "../../hooks/useRoom";
 import { useRoomStore } from "../../store/useRoomStore";
-import { Mic, Disc, Play, Star, Sparkles } from "lucide-react";
+import { Mic, Disc, Play, Star, Sparkles, UserPlus, Users } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
 
@@ -11,26 +11,72 @@ interface PassTheMicProps {
   roomData: ReturnType<typeof useRoom>;
 }
 
+const VIRTUAL_SINGERS = [
+  "Taylor Swift 🎤",
+  "Elvis Presley 🎸",
+  "Whitney Houston 🎶",
+  "Freddie Mercury 👑",
+  "Ariana Grande 🌟",
+  "Bruno Mars 🕺",
+  "Adele 🎹",
+  "Ed Sheeran 🎧"
+];
+
+// Deterministic avatar generator based on nickname
+function getAvatarData(nickname: string) {
+  const emojis = ["🎤", "🎵", "🎸", "🎧", "🎹", "🎶", "🌟", "🔥", "🦄", "🐼", "🦊", "🐱", "🦁", "🐨"];
+  const gradients = [
+    "from-purple-500 to-indigo-500",
+    "from-blue-500 to-cyan-500",
+    "from-pink-500 to-rose-500",
+    "from-emerald-500 to-teal-500",
+    "from-amber-500 to-orange-500",
+    "from-red-500 to-pink-500",
+  ];
+  
+  let hash = 0;
+  for (let i = 0; i < nickname.length; i++) {
+    hash = nickname.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  hash = Math.abs(hash);
+  
+  const emoji = emojis[hash % emojis.length];
+  const gradient = gradients[hash % gradients.length];
+  const initials = nickname.replace(/[^a-zA-Z0-9]/g, "").slice(0, 2).toUpperCase() || "🎤";
+  
+  return { emoji, gradient, initials };
+}
+
 export default function PassTheMic({ roomData }: PassTheMicProps) {
   const { users } = roomData;
   const { passTheMicVisible, setPassTheMicVisible } = useRoomStore();
 
   const [candidates, setCandidates] = useState<string[]>([]);
+  const [includeVirtual, setIncludeVirtual] = useState(true);
   const [spinning, setSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [winner, setWinner] = useState<string | null>(null);
 
-  // Initialize candidates list with online users if list is empty
+  // Initialize candidates list snapshot when modal opens or includeVirtual toggles
+  // Guard with !spinning && !winner to lock the candidates list during spin
   useEffect(() => {
-    if (users.length > 0) {
+    if (passTheMicVisible && !spinning && !winner) {
       const onlineNames = users.filter((u) => u.is_online).map((u) => u.nickname);
-      setCandidates(onlineNames);
+      let newList = [...onlineNames];
+      
+      if (includeVirtual && newList.length < 5) {
+        const needed = 5 - newList.length;
+        const availableVirtual = VIRTUAL_SINGERS.filter(name => !newList.includes(name));
+        newList = [...newList, ...availableVirtual.slice(0, needed)];
+      }
+      setCandidates(newList);
     }
-  }, [users, passTheMicVisible]);
+  }, [passTheMicVisible, users, includeVirtual, spinning, winner]);
 
   if (!passTheMicVisible || candidates.length === 0) return null;
 
   const handleVolunteer = (name: string) => {
+    if (spinning || winner) return;
     if (candidates.includes(name)) {
       setCandidates(candidates.filter((c) => c !== name));
     } else {
@@ -50,8 +96,10 @@ export default function PassTheMic({ roomData }: PassTheMicProps) {
 
     // Calculate rotation: 5 full spins (1800deg) + slice alignment
     const sliceAngle = 360 / candidates.length;
-    // Align target slice to the top (which is 270deg offset or pointer at top)
-    const targetAngle = 360 - (winnerIdx * sliceAngle + sliceAngle / 2);
+    const centerAngle = winnerIdx * sliceAngle + sliceAngle / 2;
+    // Align center of slice to 270 degrees (top pointer arrow)
+    let targetAngle = 270 - centerAngle;
+    if (targetAngle < 0) targetAngle += 360;
     const extraSpins = 5;
     const finalRotation = extraSpins * 360 + targetAngle;
 
@@ -105,6 +153,13 @@ export default function PassTheMic({ roomData }: PassTheMicProps) {
 
         {/* The SVG Wheel */}
         <div className="relative w-64 h-64 mb-6 flex items-center justify-center wheel-container select-none">
+          {/* Top Pointer Arrow */}
+          <div className="absolute top-[-8px] left-1/2 -translate-x-1/2 z-20 drop-shadow-[0_2px_8px_rgba(236,72,153,0.4)]">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M10 20 L2 4 A2 2 0 0 1 4 1 L16 1 A2 2 0 0 1 18 4 Z" fill="#ec4899" stroke="#ffffff" strokeWidth="2" />
+            </svg>
+          </div>
+
           <motion.svg
             className="w-full h-full drop-shadow-2xl"
             viewBox="0 0 100 100"
@@ -166,62 +221,126 @@ export default function PassTheMic({ roomData }: PassTheMicProps) {
           </motion.svg>
         </div>
 
-        {/* Results / Control Buttons */}
-        <AnimatePresence mode="wait">
-          {winner ? (
-            <motion.div
-              key="winner"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-center w-full space-y-4"
-            >
-              <div className="bg-zinc-950/60 border border-zinc-900 px-6 py-3.5 rounded-xl shadow-inner max-w-[280px] mx-auto relative">
-                <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-purple-400 animate-bounce" />
-                <span className="block text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-1">
-                  Selected Singer
-                </span>
-                <span className="font-heading text-2xl font-extrabold text-purple-400 uppercase tracking-wide">
-                  🎤 {winner}
-                </span>
-              </div>
+        {/* Candidates Selection list */}
+        <div className="w-full mt-2 mb-6">
+          <div className="flex items-center justify-between text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">
+            <span className="flex items-center gap-1">
+              <Users className="w-3.5 h-3.5 text-purple-400" />
+              Draw Candidates ({candidates.length})
+            </span>
+            <label className="flex items-center gap-1.5 cursor-pointer text-purple-400 select-none">
+              <input
+                type="checkbox"
+                checked={includeVirtual}
+                disabled={spinning || !!winner}
+                onChange={(e) => setIncludeVirtual(e.target.checked)}
+                className="rounded border-zinc-800 text-purple-500 focus:ring-0 focus:ring-offset-0 bg-zinc-950 w-3.5 h-3.5"
+              />
+              <span>Include Bots</span>
+            </label>
+          </div>
+          
+          <div className="flex gap-2.5 overflow-x-auto pb-2 px-1 scrollbar-thin scrollbar-thumb-zinc-800">
+            {(() => {
+              const onlineNames = users.filter((u) => u.is_online).map((u) => u.nickname);
+              const activeBots = candidates.filter(c => VIRTUAL_SINGERS.includes(c));
+              const pool = Array.from(new Set([...onlineNames, ...activeBots, ...VIRTUAL_SINGERS.slice(0, 4)]));
+              
+              return pool.map((name) => {
+                const inDraw = candidates.includes(name);
+                const avatar = getAvatarData(name);
+                return (
+                  <button
+                    key={name}
+                    disabled={spinning || !!winner}
+                    onClick={() => handleVolunteer(name)}
+                    className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all min-w-[70px] cursor-pointer ${
+                      inDraw
+                        ? "bg-purple-950/20 border-purple-500/40 text-white"
+                        : "bg-zinc-950/20 border-zinc-900 text-zinc-550 opacity-45 hover:opacity-75"
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-full bg-gradient-to-tr ${avatar.gradient} flex items-center justify-center text-xs font-bold text-white relative shadow`}>
+                      <span>{avatar.initials}</span>
+                      <span className="absolute -bottom-1 -right-1 text-[9px] bg-black/75 rounded-full px-0.5">{avatar.emoji}</span>
+                    </div>
+                    <span className="text-[9px] font-semibold truncate max-w-[56px]">{name}</span>
+                  </button>
+                );
+              });
+            })()}
+          </div>
+        </div>
 
-              <div className="flex gap-2 w-full pt-2">
+        {/* Results / Control Buttons */}
+        <div className="w-full">
+          <AnimatePresence mode="wait">
+            {winner ? (
+              <motion.div
+                key="winner"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center w-full space-y-4"
+              >
+                <div className="bg-zinc-950/60 border border-zinc-900 px-6 py-4 rounded-xl shadow-inner max-w-[280px] mx-auto relative">
+                  <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-purple-400 animate-bounce" />
+                  <span className="block text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-2">
+                    Selected Singer
+                  </span>
+                  {(() => {
+                    const avatar = getAvatarData(winner);
+                    return (
+                      <div className="flex flex-col items-center gap-3 mt-1">
+                        <div className={`w-14 h-14 rounded-full bg-gradient-to-tr ${avatar.gradient} flex items-center justify-center text-xl font-bold text-white relative shadow-lg shadow-purple-500/20 animate-bounce`}>
+                          <span>{avatar.initials}</span>
+                          <span className="absolute -bottom-1 -right-1 text-xs bg-black/70 rounded-full p-0.5">{avatar.emoji}</span>
+                        </div>
+                        <span className="font-heading text-2xl font-extrabold text-purple-400 uppercase tracking-wide">
+                          🎤 {winner}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div className="flex gap-2 w-full pt-2">
+                  <button
+                    onClick={() => {
+                      setWinner(null);
+                      setRotation(0);
+                    }}
+                    className="flex-1 bg-zinc-900 border border-zinc-800 text-zinc-300 font-bold text-xs py-3 rounded-xl transition cursor-pointer"
+                  >
+                    SPIN AGAIN
+                  </button>
+                  <button
+                    onClick={() => setPassTheMicVisible(false)}
+                    className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-xs py-3 rounded-xl transition cursor-pointer"
+                  >
+                    START SINGING
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div key="controls" className="w-full text-center space-y-4">
                 <button
-                  onClick={() => {
-                    setWinner(null);
-                    setRotation(0);
-                  }}
-                  className="flex-1 bg-zinc-900 border border-zinc-800 text-zinc-300 font-bold text-xs py-3 rounded-xl transition cursor-pointer"
+                  disabled={spinning || candidates.length === 0}
+                  onClick={spinWheel}
+                  className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-95 text-white font-extrabold tracking-widest rounded-xl py-3.5 shadow-lg shadow-purple-500/10 active:scale-95 transition cursor-pointer disabled:opacity-50"
                 >
-                  SPIN AGAIN
+                  {spinning ? "SPINNING ROULETTE..." : "SPIN WHEEL"}
                 </button>
+
                 <button
                   onClick={() => setPassTheMicVisible(false)}
-                  className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-xs py-3 rounded-xl transition cursor-pointer"
+                  className="text-zinc-500 hover:text-zinc-300 text-xs font-semibold underline transition cursor-pointer"
                 >
-                  START SINGING
+                  Close Panel
                 </button>
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div key="controls" className="w-full text-center space-y-4">
-              <button
-                disabled={spinning || candidates.length === 0}
-                onClick={spinWheel}
-                className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-95 text-white font-extrabold tracking-widest rounded-xl py-3.5 shadow-lg shadow-purple-500/10 active:scale-95 transition cursor-pointer disabled:opacity-50"
-              >
-                {spinning ? "SPINNING ROULETTE..." : "SPIN WHEEL"}
-              </button>
-
-              <button
-                onClick={() => setPassTheMicVisible(false)}
-                className="text-zinc-500 hover:text-zinc-300 text-xs font-semibold underline transition cursor-pointer"
-              >
-                Close Panel
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </motion.div>
     </div>
   );
