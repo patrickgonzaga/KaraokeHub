@@ -15,7 +15,7 @@ const isDemoMode =
 
 export default function Home() {
   const router = useRouter();
-  const { initializeClient, setNickname, setHostToken, setTVMode, setPendingRoomName } = useRoomStore();
+  const { userId, initializeClient, setNickname, setHostToken, setTVMode, setPendingRoomName } = useRoomStore();
 
   const [activeTab, setActiveTab] = useState<"create" | "join">("create");
   const [roomName, setRoomName] = useState("");
@@ -102,6 +102,7 @@ export default function Home() {
 
       // Add current user as host
       const { error: userErr } = await supabase.from("room_users").insert({
+        id: userId || undefined,
         room_id: newRoom.id,
         nickname: nicknameInput.trim(),
         role: "host",
@@ -164,6 +165,7 @@ export default function Home() {
 
       // Add user to the room
       const { error: userErr } = await supabase.from("room_users").insert({
+        id: userId || undefined,
         room_id: dbRoom.id,
         nickname: nicknameInput.trim(),
         role: "guest",

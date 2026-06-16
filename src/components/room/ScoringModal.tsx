@@ -21,18 +21,54 @@ export default function ScoringModal({ roomData }: ScoringModalProps) {
   const [impact, setImpact] = useState(5);
   const [choice, setChoice] = useState(5);
   const [submitted, setSubmitted] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(15);
+  const [aiTimeLeft, setAiTimeLeft] = useState(10);
 
   // Find queue item being scored
   const scoredItem = queue.find((q) => q.id === scoringQueueItemId);
+  const activeAIScore = useRoomStore((state) => state.activeAIScore);
+  const setActiveAIScore = useRoomStore((state) => state.setActiveAIScore);
 
   // Clear submission status when target item changes
   useEffect(() => {
     setSubmitted(false);
   }, [scoringQueueItemId]);
 
-  const activeAIScore = useRoomStore((state) => state.activeAIScore);
-  const setActiveAIScore = useRoomStore((state) => state.setActiveAIScore);
+  // Timer for Manual Scoring Modal
+  useEffect(() => {
+    if (!scoringModalVisible || submitted) return;
+    
+    setTimeLeft(15);
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [scoringModalVisible, submitted]);
 
+  // Timer for AI Scoring Overlay
+  useEffect(() => {
+    if (!activeAIScore) return;
+    
+    setAiTimeLeft(10);
+    const interval = setInterval(() => {
+      setAiTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [activeAIScore]);
   // If AI Scorer overlay is active, show the AI results screen to guests/hosts
   if (activeAIScore) {
     return (
@@ -69,6 +105,21 @@ export default function ScoringModal({ roomData }: ScoringModalProps) {
           <div className="bg-zinc-900/60 border border-zinc-800 p-3 rounded-xl">
             <p className="text-zinc-300 text-xs font-medium italic leading-relaxed">
               "{activeAIScore.comment}"
+            </p>
+          </div>
+
+          {/* AI Scorer Countdown Timer */}
+          <div className="space-y-2 pt-1">
+            <div className="w-full bg-zinc-900/40 h-1.5 rounded-full overflow-hidden border border-zinc-850">
+              <motion.div
+                initial={{ width: "100%" }}
+                animate={{ width: `${(aiTimeLeft / 10) * 100}%` }}
+                transition={{ duration: 1, ease: "linear" }}
+                className="bg-purple-500 h-full"
+              />
+            </div>
+            <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">
+              Closing in {aiTimeLeft} seconds
             </p>
           </div>
 
@@ -191,6 +242,21 @@ export default function ScoringModal({ roomData }: ScoringModalProps) {
                 <Star className="w-4.5 h-4.5" />
                 SUBMIT RATING
               </button>
+
+              {/* Manual scoring countdown progress bar */}
+              <div className="space-y-2 pt-1 select-none">
+                <div className="w-full bg-zinc-950 h-1.5 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: "100%" }}
+                    animate={{ width: `${(timeLeft / 15) * 100}%` }}
+                    transition={{ duration: 1, ease: "linear" }}
+                    className="bg-purple-500 h-full"
+                  />
+                </div>
+                <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest text-center">
+                  Closing in {timeLeft} seconds
+                </p>
+              </div>
             </motion.form>
           ) : (
             <motion.div

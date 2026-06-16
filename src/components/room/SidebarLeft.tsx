@@ -6,6 +6,31 @@ import QRCode from "qrcode";
 import { Users, Award, BarChart3, QrCode, Sparkles, Star, Flame, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 
+// Deterministic avatar generator based on nickname
+function getAvatarData(nickname: string) {
+  const emojis = ["🎤", "🎵", "🎸", "🎧", "🎹", "🎶", "🌟", "🔥", "🦄", "🐼", "🦊", "🐱", "🦁", "🐨"];
+  const gradients = [
+    "from-purple-500 to-indigo-500",
+    "from-blue-500 to-cyan-500",
+    "from-pink-500 to-rose-500",
+    "from-emerald-500 to-teal-500",
+    "from-amber-500 to-orange-500",
+    "from-red-500 to-pink-500",
+  ];
+  
+  let hash = 0;
+  for (let i = 0; i < nickname.length; i++) {
+    hash = nickname.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  hash = Math.abs(hash);
+  
+  const emoji = emojis[hash % emojis.length];
+  const gradient = gradients[hash % gradients.length];
+  const initials = nickname.replace(/[^a-zA-Z0-9]/g, "").slice(0, 2).toUpperCase() || "🎤";
+  
+  return { emoji, gradient, initials };
+}
+
 interface SidebarLeftProps {
   roomData: ReturnType<typeof useRoom>;
   showStatsOnly?: boolean;
@@ -82,28 +107,36 @@ export default function SidebarLeft({ roomData, showStatsOnly = false }: Sidebar
         </div>
 
         <div className="flex-1 overflow-y-auto space-y-2 pr-1 select-none">
-          {users.map((user) => (
-            <motion.div
-              layout
-              key={user.id}
-              className="flex items-center justify-between text-sm py-1 px-2 rounded-lg hover:bg-zinc-950/40 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                {/* Status Dot */}
-                <span
-                  className={`w-2.5 h-2.5 rounded-full ${
-                    user.is_online
-                      ? "bg-emerald-500 shadow-[0_0_8px_#10b981]"
-                      : "bg-zinc-700"
-                  }`}
-                />
-                <span className="font-medium text-zinc-200">{user.nickname}</span>
-              </div>
-              <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">
-                {user.role}
-              </span>
-            </motion.div>
-          ))}
+          {users.map((user) => {
+            const avatar = getAvatarData(user.nickname);
+            return (
+              <motion.div
+                layout
+                key={user.id}
+                className="flex items-center justify-between text-sm py-1.5 px-2 rounded-lg hover:bg-zinc-950/40 transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="relative">
+                    <div className={`w-7 h-7 rounded-full bg-gradient-to-tr ${avatar.gradient} flex items-center justify-center text-[10px] font-bold text-white shadow-sm`}>
+                      <span>{avatar.initials}</span>
+                    </div>
+                    {/* Status Dot */}
+                    <span
+                      className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-zinc-950 ${
+                        user.is_online
+                          ? "bg-emerald-500 shadow-[0_0_8px_#10b981]"
+                          : "bg-zinc-700"
+                      }`}
+                    />
+                  </div>
+                  <span className="font-medium text-zinc-200">{user.nickname}</span>
+                </div>
+                <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">
+                  {user.role}
+                </span>
+              </motion.div>
+            );
+          })}
         </div>
       </section>
 
