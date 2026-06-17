@@ -10,7 +10,7 @@ import Link from "next/link";
 
 export default function RoomPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = use(params);
-  const { userId, nickname, initializeClient, setNickname, pendingRoomName, setTVMode } = useRoomStore();
+  const { userId, nickname, initializeClient, setNickname, pendingRoomName, setTVMode, setRoomCode } = useRoomStore();
 
   const [nicknameInput, setNicknameInput] = useState("");
   const [hasPrompted, setHasPrompted] = useState(false);
@@ -19,6 +19,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   // Initialize Zustand client details & check for TV URL param
   useEffect(() => {
     initializeClient();
+    setRoomCode(code);
     
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
@@ -29,7 +30,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     }
     
     setHasPrompted(true);
-  }, [initializeClient, setNickname, setTVMode]);
+  }, [initializeClient, setNickname, setTVMode, setRoomCode, code]);
 
   // Load the active Room connection
   const roomData = useRoom(code, pendingRoomName || undefined);

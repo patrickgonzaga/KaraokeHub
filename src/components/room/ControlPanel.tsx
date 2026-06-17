@@ -7,6 +7,7 @@ import { Search, Plus, ThumbsUp, Trash2, Play, Pause, SkipForward, AlertCircle, 
 import { motion, AnimatePresence } from "framer-motion";
 import ScoringModal from "./ScoringModal";
 import PassTheMic from "./PassTheMic";
+import { getAvatarData } from "../../lib/avatar";
 
 interface ControlPanelProps {
   roomData: ReturnType<typeof useRoom>;
@@ -326,9 +327,20 @@ export default function ControlPanel({ roomData, activeTab }: ControlPanelProps)
                     <h4 className="text-[11px] font-extrabold text-white truncate leading-tight">
                       {playingSong.song?.title}
                     </h4>
-                    <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-wider mt-1 truncate">
-                      Singer: {playingSong.requested_by_nickname} • {formatDuration(playingSong.song?.duration || 0)}
-                    </p>
+                    <div className="flex items-center gap-2 mt-1 truncate">
+                      {(() => {
+                        const avatar = getAvatarData(playingSong.requested_by_nickname);
+                        return (
+                          <div className={`w-5 h-5 rounded-full bg-gradient-to-tr ${avatar.gradient} flex-shrink-0 flex items-center justify-center text-[8px] font-bold text-white shadow-sm relative`}>
+                            <span>{avatar.initials}</span>
+                            <span className="absolute -top-1 -right-1 text-[7px]">{avatar.emoji}</span>
+                          </div>
+                        );
+                      })()}
+                      <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-wider truncate">
+                        Singer: {playingSong.requested_by_nickname} • {formatDuration(playingSong.song?.duration || 0)}
+                      </p>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -362,9 +374,20 @@ export default function ControlPanel({ roomData, activeTab }: ControlPanelProps)
                         <h4 className="text-[11px] font-bold text-zinc-200 truncate leading-tight">
                           {item.song?.title}
                         </h4>
-                        <p className="text-[8px] text-zinc-550 font-semibold uppercase mt-0.5 truncate">
-                          Req: {item.requested_by_nickname} • {formatDuration(item.song?.duration || 0)}
-                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5 truncate">
+                          {(() => {
+                            const avatar = getAvatarData(item.requested_by_nickname);
+                            return (
+                              <div className={`w-4 h-4 rounded-full bg-gradient-to-tr ${avatar.gradient} flex-shrink-0 flex items-center justify-center text-[6px] font-bold text-white shadow-sm relative`}>
+                                <span>{avatar.initials}</span>
+                                <span className="absolute -top-1 -right-1 text-[5px]">{avatar.emoji}</span>
+                              </div>
+                            );
+                          })()}
+                          <p className="text-[8px] text-zinc-550 font-semibold uppercase truncate">
+                            Req: {item.requested_by_nickname} • {formatDuration(item.song?.duration || 0)}
+                          </p>
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-2">

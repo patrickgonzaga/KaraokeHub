@@ -5,6 +5,7 @@ import { useRoom } from "../../hooks/useRoom";
 import { MessageSquare, Flame, History, Send, Smile, Info, Radio } from "lucide-react";
 import { useRoomStore } from "../../store/useRoomStore";
 import { motion, AnimatePresence } from "framer-motion";
+import { getAvatarData } from "../../lib/avatar";
 
 interface SidebarRightProps {
   roomData: ReturnType<typeof useRoom>;
@@ -106,14 +107,23 @@ export default function SidebarRight({ roomData, activeTab }: SidebarRightProps)
                 </p>
               </div>
             ) : (
-              messages.map((msg) => (
-                <div key={msg.id} className="text-xs break-words">
-                  <span className="font-bold text-purple-400 mr-1.5 hover:underline cursor-pointer">
-                    {msg.nickname}:
-                  </span>
-                  <span className="text-zinc-200">{msg.message}</span>
-                </div>
-              ))
+              messages.map((msg) => {
+                const avatar = getAvatarData(msg.nickname);
+                return (
+                  <div key={msg.id} className="flex items-start gap-2 text-xs py-1">
+                    <div className={`w-6 h-6 rounded-full bg-gradient-to-tr ${avatar.gradient} flex-shrink-0 flex items-center justify-center text-[8px] font-bold text-white shadow-sm relative`}>
+                      <span>{avatar.initials}</span>
+                      <span className="absolute -top-1 -right-1 text-[8px]">{avatar.emoji}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="font-bold text-purple-400 mr-1.5 hover:underline cursor-pointer">
+                        {msg.nickname}:
+                      </span>
+                      <span className="text-zinc-200 break-words">{msg.message}</span>
+                    </div>
+                  </div>
+                );
+              })
             )}
             <div ref={chatEndRef} />
           </div>

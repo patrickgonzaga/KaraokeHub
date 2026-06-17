@@ -45,6 +45,7 @@ interface RoomState {
   setScoringQueueItemId: (id: string | null) => void;
   setScoringModalVisible: (visible: boolean) => void;
   setPassTheMicVisible: (visible: boolean) => void;
+  setRoomCode: (code: string) => void;
 }
 
 export const useRoomStore = create<RoomState>((set) => ({
@@ -159,4 +160,14 @@ export const useRoomStore = create<RoomState>((set) => ({
   setScoringQueueItemId: (scoringQueueItemId) => set({ scoringQueueItemId }),
   setScoringModalVisible: (scoringModalVisible) => set({ scoringModalVisible }),
   setPassTheMicVisible: (passTheMicVisible) => set({ passTheMicVisible }),
+  setRoomCode: (code) => {
+    if (!code) return;
+    const key = `karaokehub_user_id_${code}`;
+    let savedUserId = localStorage.getItem(key);
+    if (!savedUserId) {
+      savedUserId = safeUUID();
+      localStorage.setItem(key, savedUserId);
+    }
+    set({ userId: savedUserId });
+  },
 }));

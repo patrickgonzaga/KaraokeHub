@@ -6,6 +6,7 @@ import { useRoomStore } from "../../store/useRoomStore";
 import { Mic, Disc, Play, Star, Sparkles, UserPlus, Users } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
+import { getAvatarData } from "../../lib/avatar";
 
 interface PassTheMicProps {
   roomData: ReturnType<typeof useRoom>;
@@ -21,31 +22,6 @@ const VIRTUAL_SINGERS = [
   "Adele 🎹",
   "Ed Sheeran 🎧"
 ];
-
-// Deterministic avatar generator based on nickname
-function getAvatarData(nickname: string) {
-  const emojis = ["🎤", "🎵", "🎸", "🎧", "🎹", "🎶", "🌟", "🔥", "🦄", "🐼", "🦊", "🐱", "🦁", "🐨"];
-  const gradients = [
-    "from-purple-500 to-indigo-500",
-    "from-blue-500 to-cyan-500",
-    "from-pink-500 to-rose-500",
-    "from-emerald-500 to-teal-500",
-    "from-amber-500 to-orange-500",
-    "from-red-500 to-pink-500",
-  ];
-  
-  let hash = 0;
-  for (let i = 0; i < nickname.length; i++) {
-    hash = nickname.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  hash = Math.abs(hash);
-  
-  const emoji = emojis[hash % emojis.length];
-  const gradient = gradients[hash % gradients.length];
-  const initials = nickname.replace(/[^a-zA-Z0-9]/g, "").slice(0, 2).toUpperCase() || "🎤";
-  
-  return { emoji, gradient, initials };
-}
 
 export default function PassTheMic({ roomData }: PassTheMicProps) {
   const { users } = roomData;
@@ -100,8 +76,16 @@ export default function PassTheMic({ roomData }: PassTheMicProps) {
     // Align center of slice to 270 degrees (top pointer arrow)
     let targetAngle = 270 - centerAngle;
     if (targetAngle < 0) targetAngle += 360;
+
+    // Accumulate rotation so it always spins forward from the current rotation
+    const currentRotation = rotation;
+    const currentAngle = currentRotation % 360;
+    let angleDiff = targetAngle - currentAngle;
+    if (angleDiff <= 0) {
+      angleDiff += 360;
+    }
     const extraSpins = 5;
-    const finalRotation = extraSpins * 360 + targetAngle;
+    const finalRotation = currentRotation + angleDiff + (extraSpins * 360);
 
     setRotation(finalRotation);
 
@@ -307,7 +291,6 @@ export default function PassTheMic({ roomData }: PassTheMicProps) {
                   <button
                     onClick={() => {
                       setWinner(null);
-                      setRotation(0);
                     }}
                     className="flex-1 bg-zinc-900 border border-zinc-800 text-zinc-300 font-bold text-xs py-3 rounded-xl transition cursor-pointer"
                   >
