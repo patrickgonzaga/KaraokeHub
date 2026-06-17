@@ -15,7 +15,7 @@ const isDemoMode =
 
 export default function Home() {
   const router = useRouter();
-  const { userId, initializeClient, setNickname, setHostToken, setTVMode, setPendingRoomName } = useRoomStore();
+  const { userId, initializeClient, setNickname, setHostToken, setTVMode, setPendingRoomName, setRoomCode: setRoomCodeStore } = useRoomStore();
 
   const [activeTab, setActiveTab] = useState<"create" | "join">("create");
   const [roomName, setRoomName] = useState("");
@@ -73,6 +73,7 @@ export default function Home() {
     setHostToken(generatedHostToken);
     setPendingRoomName(roomName.trim());
     setTVMode(false); // Default to controller on redirect, users can toggle TV Mode on the room screen
+    setRoomCodeStore(generatedCode);
 
     if (isDemoMode) {
       setTimeout(() => {
@@ -102,7 +103,7 @@ export default function Home() {
 
       // Add current user as host
       const { error: userErr } = await supabase.from("room_users").insert({
-        id: userId || undefined,
+        id: useRoomStore.getState().userId || undefined,
         room_id: newRoom.id,
         nickname: nicknameInput.trim(),
         role: "host",
@@ -142,6 +143,7 @@ export default function Home() {
     // Store user choices locally
     setNickname(nicknameInput.trim());
     setTVMode(false);
+    setRoomCodeStore(targetCode);
 
     if (isDemoMode) {
       setTimeout(() => {
@@ -165,7 +167,7 @@ export default function Home() {
 
       // Add user to the room
       const { error: userErr } = await supabase.from("room_users").insert({
-        id: userId || undefined,
+        id: useRoomStore.getState().userId || undefined,
         room_id: dbRoom.id,
         nickname: nicknameInput.trim(),
         role: "guest",
