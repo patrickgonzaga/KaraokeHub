@@ -7,7 +7,7 @@ const initialState = {
   hostToken: null,
   pendingRoomName: null,
   isTVMode: false,
-  activeTab: 'search',
+  activeTab: 'search' as const,
   autoScoringEnabled: true,
   showFreestylePrompt: true,
   activeAIScore: null,

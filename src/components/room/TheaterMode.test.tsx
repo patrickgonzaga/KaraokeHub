@@ -27,6 +27,7 @@ const mockMessages = [
 const mockRoomData = {
   room: { is_playing: false, playback_time: 0 },
   queue: [],
+  users: [],
   messages: mockMessages,
   updatePlaybackTime: vi.fn(),
   pauseSong: vi.fn(),
