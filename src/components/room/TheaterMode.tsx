@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useRoom } from "../../hooks/useRoom";
 import { useRoomStore } from "../../store/useRoomStore";
 import { parseLRC, LyricLine } from "../../lib/lyrics-parser";
-import { Play, Pause, SkipForward, Volume2, VolumeX, Flame, Music, Disc, Sparkles } from "lucide-react";
+import { Play, Pause, SkipForward, Volume2, VolumeX, Flame, Music, Disc, Sparkles, MessageSquare } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
 
@@ -81,6 +81,7 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
   const {
     room,
     queue,
+    messages,
     updatePlaybackTime,
     pauseSong,
     resumeSong,
@@ -523,6 +524,46 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
             </motion.div>
           ))}
         </AnimatePresence>
+      </div>
+
+      {/* Live Chat Overlay (TV Mode) */}
+      <div className="absolute bottom-6 left-6 z-30 w-80 max-h-[300px] flex flex-col justify-end gap-2 overflow-hidden pointer-events-none">
+        {messages.length > 0 && (
+          <div className="flex items-center gap-1.5 text-[10px] font-extrabold text-purple-400 uppercase tracking-widest px-2.5 mb-1 bg-black/60 backdrop-blur-md self-start py-1.5 rounded-lg border border-zinc-800/40">
+            <MessageSquare className="w-3.5 h-3.5 text-purple-400" />
+            <span>Live Chat</span>
+          </div>
+        )}
+        <div className="flex flex-col gap-2 overflow-y-auto pr-2 scrollbar-none">
+          <AnimatePresence>
+            {messages.slice(-5).map((msg) => {
+              const avatar = getAvatarData(msg.nickname);
+              return (
+                <motion.div
+                  key={msg.id}
+                  initial={{ opacity: 0, x: -30, scale: 0.95 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 155, damping: 18 }}
+                  className="flex items-start gap-2.5 bg-black/70 backdrop-blur-md border border-zinc-900/60 p-2.5 rounded-2xl shadow-xl max-w-full"
+                >
+                  <div className={`w-7 h-7 rounded-full bg-gradient-to-tr ${avatar.gradient} flex-shrink-0 flex items-center justify-center text-[10px] font-extrabold text-white shadow-inner relative`}>
+                    <span>{avatar.initials}</span>
+                    <span className="absolute -top-1 -right-1 text-[9px]">{avatar.emoji}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="font-bold text-purple-400 text-[11px] block leading-tight">
+                      {msg.nickname}
+                    </span>
+                    <span className="text-zinc-200 text-xs break-words font-semibold mt-0.5 block leading-normal">
+                      {msg.message}
+                    </span>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Main Canvas Player Layer */}
