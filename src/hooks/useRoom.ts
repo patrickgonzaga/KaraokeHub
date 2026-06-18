@@ -736,6 +736,16 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
   }, [room, updateDemoState, fetchRoomData]);
 
   const resumeSong = useCallback(async () => {
+    const hasActiveSong = queue.some((q) => q.status === "playing");
+    const firstPending = queue
+      .filter((q) => q.status === "pending")
+      .sort((a, b) => b.votes_count - a.votes_count || a.queue_position - b.queue_position)[0];
+
+    if (!hasActiveSong && firstPending) {
+      await playSong(firstPending.id);
+      return;
+    }
+
     if (isDemoMode) {
       if (demoStateRef.current.room) {
         demoStateRef.current.room.is_playing = true;
@@ -751,7 +761,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
     } catch (err) {
       console.error("Resume song error:", err);
     }
-  }, [room, updateDemoState, fetchRoomData]);
+  }, [room, queue, playSong, updateDemoState, fetchRoomData]);
 
   const updatePlaybackTime = useCallback(
     async (time: number) => {
@@ -1317,6 +1327,26 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
       channelRef.current = null;
     };
   }, [room?.id, roomCode, nickname, triggerFloatingReaction, setTypingUser]);
+
+  // Auto-play next song if room is playing but no song is active
+  useEffect(() => {
+    if (!room || !room.is_playing) return;
+
+    // Only the master screen or host should trigger the play mutation to avoid double updates/race conditions.
+    const isMaster = isTVMode || (room.host_token === hostToken);
+    if (!isMaster) return;
+
+    const hasActiveSong = queue.some((q) => q.status === "playing");
+    if (!hasActiveSong) {
+      const firstPending = queue
+        .filter((q) => q.status === "pending")
+        .sort((a, b) => b.votes_count - a.votes_count || a.queue_position - b.queue_position)[0];
+
+      if (firstPending) {
+        playSong(firstPending.id);
+      }
+    }
+  }, [room?.is_playing, queue, playSong, isTVMode, hostToken, room?.host_token]);
 
   // Dispatch typing indicators to peers
   const sendTypingState = useCallback(

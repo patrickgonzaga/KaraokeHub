@@ -12,42 +12,39 @@ interface PassTheMicProps {
   roomData: ReturnType<typeof useRoom>;
 }
 
-const VIRTUAL_SINGERS = [
-  "Taylor Swift 🎤",
-  "Elvis Presley 🎸",
-  "Whitney Houston 🎶",
-  "Freddie Mercury 👑",
-  "Ariana Grande 🌟",
-  "Bruno Mars 🕺",
-  "Adele 🎹",
-  "Ed Sheeran 🎧"
-];
-
 export default function PassTheMic({ roomData }: PassTheMicProps) {
   const { users } = roomData;
   const { passTheMicVisible, setPassTheMicVisible } = useRoomStore();
 
   const [candidates, setCandidates] = useState<string[]>([]);
-  const [includeVirtual, setIncludeVirtual] = useState(true);
+  const [includeOffline, setIncludeOffline] = useState(true);
   const [spinning, setSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [winner, setWinner] = useState<string | null>(null);
 
-  // Initialize candidates list snapshot when modal opens or includeVirtual toggles
+  // Reset roulette wheel state variables to initial state when the modal opens
+  useEffect(() => {
+    if (passTheMicVisible) {
+      setSpinning(false);
+      setRotation(0);
+      setWinner(null);
+    }
+  }, [passTheMicVisible]);
+
+  // Initialize candidates list snapshot when modal opens or includeOffline toggles
   // Guard with !spinning && !winner to lock the candidates list during spin
   useEffect(() => {
     if (passTheMicVisible && !spinning && !winner) {
       const onlineNames = users.filter((u) => u.is_online).map((u) => u.nickname);
       let newList = [...onlineNames];
       
-      if (includeVirtual && newList.length < 5) {
-        const needed = 5 - newList.length;
-        const availableVirtual = VIRTUAL_SINGERS.filter(name => !newList.includes(name));
-        newList = [...newList, ...availableVirtual.slice(0, needed)];
+      if (includeOffline) {
+        const offlineNames = users.filter((u) => !u.is_online).map((u) => u.nickname);
+        newList = [...newList, ...offlineNames];
       }
       setCandidates(newList);
     }
-  }, [passTheMicVisible, users, includeVirtual, spinning, winner]);
+  }, [passTheMicVisible, users, includeOffline, spinning, winner]);
 
   if (!passTheMicVisible || candidates.length === 0) return null;
 
@@ -215,23 +212,25 @@ export default function PassTheMic({ roomData }: PassTheMicProps) {
             <label className="flex items-center gap-1.5 cursor-pointer text-purple-400 select-none">
               <input
                 type="checkbox"
-                checked={includeVirtual}
+                checked={includeOffline}
                 disabled={spinning || !!winner}
-                onChange={(e) => setIncludeVirtual(e.target.checked)}
+                onChange={(e) => setIncludeOffline(e.target.checked)}
                 className="rounded border-zinc-800 text-purple-500 focus:ring-0 focus:ring-offset-0 bg-zinc-950 w-3.5 h-3.5"
               />
-              <span>Include Bots</span>
+              <span>Include Offline</span>
             </label>
           </div>
           
           <div className="flex gap-2.5 overflow-x-auto pb-2 px-1 scrollbar-thin scrollbar-thumb-zinc-800">
             {(() => {
               const onlineNames = users.filter((u) => u.is_online).map((u) => u.nickname);
-              const activeBots = candidates.filter(c => VIRTUAL_SINGERS.includes(c));
-              const pool = Array.from(new Set([...onlineNames, ...activeBots, ...VIRTUAL_SINGERS.slice(0, 4)]));
+              const offlineNames = users.filter((u) => !u.is_online).map((u) => u.nickname);
+              const pool = Array.from(new Set([...onlineNames, ...offlineNames]));
               
               return pool.map((name) => {
                 const inDraw = candidates.includes(name);
+                const user = users.find((u) => u.nickname === name);
+                const isOnline = user ? user.is_online : false;
                 const avatar = getAvatarData(name);
                 return (
                   <button
@@ -244,11 +243,12 @@ export default function PassTheMic({ roomData }: PassTheMicProps) {
                         : "bg-zinc-950/20 border-zinc-900 text-zinc-550 opacity-45 hover:opacity-75"
                     }`}
                   >
-                    <div className={`w-8 h-8 rounded-full bg-gradient-to-tr ${avatar.gradient} flex items-center justify-center text-xs font-bold text-white relative shadow`}>
+                    <div className={`w-8 h-8 rounded-full bg-gradient-to-tr ${avatar.gradient} flex items-center justify-center text-xs font-bold text-white relative shadow ${!isOnline ? "grayscale opacity-60" : ""}`}>
                       <span>{avatar.initials}</span>
                       <span className="absolute -bottom-1 -right-1 text-[9px] bg-black/75 rounded-full px-0.5">{avatar.emoji}</span>
                     </div>
                     <span className="text-[9px] font-semibold truncate max-w-[56px]">{name}</span>
+                    {!isOnline && <span className="text-[7px] text-zinc-500 font-bold uppercase tracking-wider scale-90">Offline</span>}
                   </button>
                 );
               });

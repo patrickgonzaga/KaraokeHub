@@ -4,9 +4,10 @@ import React, { useEffect, useRef, useState } from "react";
 import { useRoom } from "../../hooks/useRoom";
 import { useRoomStore } from "../../store/useRoomStore";
 import { parseLRC, LyricLine } from "../../lib/lyrics-parser";
-import { Play, Pause, SkipForward, Volume2, VolumeX, Flame, Music, Disc, Sparkles, MessageSquare } from "lucide-react";
+import { Play, Pause, SkipForward, Volume2, VolumeX, Flame, Music, Disc, Sparkles, MessageSquare, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
+import PassTheMic from "./PassTheMic";
 
 interface TheaterModeProps {
   roomData: ReturnType<typeof useRoom>;
@@ -103,6 +104,7 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
     showFreestylePrompt,
     hostToken,
     activeAIScore,
+    setPassTheMicVisible,
   } = useRoomStore();
 
   const [showIntroCard, setShowIntroCard] = useState(false);
@@ -111,6 +113,7 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
   const [currentLyricIdx, setCurrentLyricIdx] = useState(-1);
   const [lyricsLoading, setLyricsLoading] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
 
   // Client-side playback time interpolation to keep lyrics scrolling butter-smooth
   const [localTime, setLocalTime] = useState(0);
@@ -122,8 +125,14 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
   // Find currently playing song in queue
   const currentItem = queue.find((q) => q.status === "playing" || q.id === room?.current_song_id);
 
-  // Monitor song changes to display intro card
+  // Sorted list of pending songs for the queue overlay
+  const pendingSongs = queue
+    .filter((item) => item.status === "pending")
+    .sort((a, b) => b.votes_count - a.votes_count || a.queue_position - b.queue_position);
+
+  // Monitor song changes to display intro card & reset errors
   useEffect(() => {
+    setPlaybackError(null);
     if (currentItem?.id) {
       setShowIntroCard(true);
       const timer = setTimeout(() => {
@@ -317,6 +326,29 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
               handleSongFinished();
             }
           },
+          onError: (event: any) => {
+            if (!mounted) return;
+            const code = event.data;
+            let msg = "Video playback error.";
+            if (code === 101 || code === 150) {
+              msg = "This video is not embeddable outside YouTube.";
+            } else if (code === 100) {
+              msg = "This video is unavailable or deleted.";
+            } else if (code === 2) {
+              msg = "Invalid video ID.";
+            }
+            setPlaybackError(`${msg} Skipping in 3 seconds...`);
+
+            // Only the master screen (TV or Host) should trigger the skip
+            const isMaster = isTVMode || (room?.host_token === hostToken);
+            if (isMaster) {
+              setTimeout(() => {
+                if (mounted) {
+                  skipSong();
+                }
+              }, 3000);
+            }
+          },
         },
       });
     };
@@ -445,6 +477,15 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
             {/* Actual YouTube Player (with controls visible so user can interact) */}
             <div className="relative w-full aspect-video">
               <div id="youtube-player-ctrl" className="absolute inset-0 w-full h-full" />
+
+              {/* Playback Error Overlay */}
+              {playbackError && (
+                <div className="absolute inset-0 z-40 bg-zinc-950/95 flex flex-col items-center justify-center p-4 text-center">
+                  <AlertTriangle className="w-6 h-6 text-rose-500 animate-pulse mb-2" />
+                  <p className="text-zinc-200 text-[10px] font-extrabold uppercase tracking-wider">Playback Error</p>
+                  <p className="text-zinc-450 text-[9px] mt-1 max-w-[220px] font-semibold">{playbackError}</p>
+                </div>
+              )}
 
               {/* Lyrics overlay strip at bottom of player */}
               <div className="absolute inset-x-0 bottom-0 z-20 px-4 py-2 bg-gradient-to-t from-black/80 to-transparent pointer-events-none select-none flex flex-col items-center">
@@ -622,6 +663,36 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
           )}
         </AnimatePresence>
 
+        {/* Playback Error Overlay */}
+        <AnimatePresence>
+          {playbackError && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-40 bg-zinc-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center"
+            >
+              <motion.div
+                initial={{ scale: 0.85, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.85, y: 20 }}
+                transition={{ type: "spring", stiffness: 120, damping: 15 }}
+                className="space-y-4 max-w-md"
+              >
+                <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-rose-500/20 text-rose-500 border border-rose-500/20">
+                  <AlertTriangle className="w-8 h-8 animate-pulse" />
+                </div>
+                <h3 className="font-heading text-xl text-white uppercase tracking-wider">
+                  Playback Error
+                </h3>
+                <p className="text-zinc-300 text-sm font-semibold">
+                  {playbackError}
+                </p>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {currentItem ? (
           <>
             {/* The Real YouTube Embedded Iframe */}
@@ -755,6 +826,104 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
           </div>
         )}
       </div>
+
+      {/* Persistent DJ controls at the bottom of the TV screen */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 bg-zinc-950/80 backdrop-blur-md px-6 py-3 rounded-2xl border border-zinc-900/50 shadow-2xl flex items-center gap-4">
+        <div className="flex items-center gap-2 pr-3 border-r border-zinc-900/80">
+          <Disc className={`w-4 h-4 text-purple-400 ${room?.is_playing ? "animate-spin-slow" : ""}`} />
+          <span className="text-[10px] font-extrabold text-white uppercase tracking-widest">
+            DJ PLAY CONTROLS
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={room?.is_playing ? pauseSong : resumeSong}
+            className="p-2 bg-purple-600 hover:bg-purple-500 rounded-xl text-white transition active:scale-95 cursor-pointer shadow-md shadow-purple-500/10"
+            title={room?.is_playing ? "Pause" : "Play"}
+          >
+            {room?.is_playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={skipSong}
+            className="p-2 bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-850 rounded-xl transition active:scale-95 cursor-pointer"
+            title="Skip"
+          >
+            <SkipForward className="w-4 h-4" />
+          </button>
+          <button
+            onClick={toggleMute}
+            className="p-2 bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-850 rounded-xl transition active:scale-95 cursor-pointer"
+            title={isMuted ? "Unmute" : "Mute"}
+          >
+            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={() => setPassTheMicVisible(true)}
+            className="p-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-95 text-white text-[10px] font-extrabold tracking-widest rounded-xl transition active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-md shadow-purple-500/10"
+            title="Pass The Mic"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-yellow-300 animate-pulse" />
+            <span>PASS MIC</span>
+          </button>
+        </div>
+        {currentItem && (
+          <div className="text-[11px] text-zinc-400 font-bold pl-3 border-l border-zinc-900/80">
+            {formatTime(localTime)} / {formatTime(currentItem.song?.duration || 0)}
+          </div>
+        )}
+      </div>
+
+      {/* Queued Songs Overlay (TV Mode) */}
+      <div className="absolute bottom-6 right-6 z-30 w-80 max-h-[300px] flex flex-col justify-end gap-2 overflow-hidden pointer-events-none">
+        {pendingSongs.length > 0 && (
+          <div className="flex items-center gap-1.5 text-[10px] font-extrabold text-purple-400 uppercase tracking-widest px-2.5 mb-1 bg-black/60 backdrop-blur-md self-end py-1.5 rounded-lg border border-zinc-800/40 pointer-events-auto">
+            <Music className="w-3.5 h-3.5 text-purple-400" />
+            <span>Up Next ({pendingSongs.length})</span>
+          </div>
+        )}
+        <div className="flex flex-col gap-2 overflow-y-auto pr-2 scrollbar-none">
+          <AnimatePresence>
+            {pendingSongs.slice(0, 4).map((item, index) => {
+              const avatar = getAvatarData(item.requested_by_nickname);
+              return (
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, x: 30, scale: 0.95 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 155, damping: 18 }}
+                  className="flex items-center gap-2.5 bg-black/70 backdrop-blur-md border border-zinc-900/60 p-2.5 rounded-2xl shadow-xl max-w-full pointer-events-auto"
+                >
+                  <div className="text-[10px] font-bold text-zinc-500 w-4 text-center">
+                    #{index + 1}
+                  </div>
+                  <img
+                    src={item.song?.thumbnail_url}
+                    alt={item.song?.title}
+                    className="w-10 h-7 object-cover rounded bg-zinc-900 border border-zinc-900/40 flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <span className="font-bold text-zinc-200 text-xs block truncate leading-tight">
+                      {item.song?.title}
+                    </span>
+                    <span className="text-zinc-400 text-[10px] truncate mt-0.5 block">
+                      Singer: <span className="text-purple-400 font-bold uppercase">{item.requested_by_nickname}</span>
+                    </span>
+                  </div>
+                  {item.votes_count > 1 && (
+                    <span className="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-md font-bold shrink-0">
+                      ▲ {item.votes_count}
+                    </span>
+                  )}
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* Pass The Mic Modal Overlay */}
+      <PassTheMic roomData={roomData} />
     </div>
   );
 }

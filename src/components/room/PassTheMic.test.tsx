@@ -55,12 +55,12 @@ describe('PassTheMic Component', () => {
     expect(screen.getByRole('button', { name: /SPIN WHEEL/i })).toBeInTheDocument();
   });
 
-  it('includes bots when checkbox is checked, and handles candidate volunteer toggle', () => {
+  it('includes offline users when checkbox is checked, and handles candidate volunteer toggle', () => {
     render(<PassTheMic roomData={mockRoomData} />);
     
     // Checkbox is checked by default
-    const botsCheckbox = screen.getByLabelText(/Include Bots/i) as HTMLInputElement;
-    expect(botsCheckbox.checked).toBe(true);
+    const offlineCheckbox = screen.getByLabelText(/Include Offline/i) as HTMLInputElement;
+    expect(offlineCheckbox.checked).toBe(true);
 
     // Toggle volunteering for 'Alice' who is online by default
     const aliceBtn = screen.getByRole('button', { name: /Alice/i });
@@ -69,6 +69,11 @@ describe('PassTheMic Component', () => {
     // Click to remove her
     fireEvent.click(aliceBtn);
     expect(aliceBtn).not.toHaveClass('bg-purple-950/20');
+
+    // Charlie is offline but should be visible in the pool
+    const charlieBtn = screen.getByRole('button', { name: /Charlie/i });
+    expect(charlieBtn).toBeInTheDocument();
+    expect(screen.getByText("Offline")).toBeInTheDocument();
   });
 
   it('spins the wheel, picks a winner, and triggers confetti', async () => {
