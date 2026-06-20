@@ -61,4 +61,23 @@ describe('TheaterMode Component - TV Chat Overlay', () => {
     
     expect(screen.queryByText('Live Chat')).not.toBeInTheDocument();
   });
+
+  it('limits the displayed messages to 10 and does not show older messages', () => {
+    const elevenMessages = Array.from({ length: 11 }, (_, i) => ({
+      id: `m${i}`,
+      nickname: `User${i}`,
+      message: `Message ${i}`,
+    }));
+    const customRoomData = {
+      ...mockRoomData,
+      messages: elevenMessages,
+    };
+    render(<TheaterMode roomData={customRoomData} />);
+    
+    // The first message (Message 0) should NOT be in the document
+    expect(screen.queryByText('Message 0')).not.toBeInTheDocument();
+    // The other messages (Message 1 to 10) should be in the document
+    expect(screen.getByText('Message 1')).toBeInTheDocument();
+    expect(screen.getByText('Message 10')).toBeInTheDocument();
+  });
 });

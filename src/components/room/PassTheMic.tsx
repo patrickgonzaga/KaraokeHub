@@ -12,6 +12,17 @@ interface PassTheMicProps {
   roomData: ReturnType<typeof useRoom>;
 }
 
+// Helper to extract a solid color from avatar gradient classes for SVG rendering
+function getSolidColorForGradient(gradientClass: string) {
+  if (gradientClass.includes("purple")) return "#8b5cf6"; // purple-500
+  if (gradientClass.includes("blue")) return "#3b82f6"; // blue-500
+  if (gradientClass.includes("pink")) return "#ec4899"; // pink-500
+  if (gradientClass.includes("emerald")) return "#10b981"; // emerald-500
+  if (gradientClass.includes("amber")) return "#f59e0b"; // amber-500
+  if (gradientClass.includes("red")) return "#ef4444"; // red-500
+  return "#71717a"; // zinc-500 fallback
+}
+
 export default function PassTheMic({ roomData }: PassTheMicProps) {
   const { users } = roomData;
   const { passTheMicVisible, setPassTheMicVisible } = useRoomStore();
@@ -99,16 +110,7 @@ export default function PassTheMic({ roomData }: PassTheMicProps) {
     }, 4500); // Animation duration matches transition
   };
 
-  // Generate color palette for wheel segments
-  const colors = [
-    "#8b5cf6", // purple
-    "#3b82f6", // blue
-    "#ec4899", // pink
-    "#10b981", // emerald
-    "#f59e0b", // amber
-    "#ef4444", // rose
-    "#06b6d4", // cyan
-  ];
+  // Colors fallback is handled via user avatar color theme dynamically
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
@@ -135,9 +137,9 @@ export default function PassTheMic({ roomData }: PassTheMicProps) {
         {/* The SVG Wheel */}
         <div className="relative w-64 h-64 mb-6 flex items-center justify-center wheel-container select-none">
           {/* Top Pointer Arrow */}
-          <div className="absolute top-[-8px] left-1/2 -translate-x-1/2 z-20 drop-shadow-[0_2px_8px_rgba(236,72,153,0.4)]">
+          <div className="absolute top-[-8px] left-1/2 -translate-x-1/2 z-20 drop-shadow-[0_2px_8px_rgba(234,179,8,0.4)]">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M10 20 L2 4 A2 2 0 0 1 4 1 L16 1 A2 2 0 0 1 18 4 Z" fill="#ec4899" stroke="#ffffff" strokeWidth="2" />
+              <path d="M10 20 L2 4 A2 2 0 0 1 4 1 L16 1 A2 2 0 0 1 18 4 Z" fill="#eab308" stroke="#ffffff" strokeWidth="2" />
             </svg>
           </div>
 
@@ -150,6 +152,43 @@ export default function PassTheMic({ roomData }: PassTheMicProps) {
               ease: [0.25, 0.1, 0.25, 1], // Cubic bezier for slowing down naturally
             }}
           >
+            <defs>
+              {/* Define gradients for matching avatar themes in SVG */}
+              <linearGradient id="grad-purple" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#a855f7" />
+                <stop offset="100%" stopColor="#6366f1" />
+              </linearGradient>
+              <linearGradient id="grad-blue" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#3b82f6" />
+                <stop offset="100%" stopColor="#06b6d4" />
+              </linearGradient>
+              <linearGradient id="grad-pink" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#ec4899" />
+                <stop offset="100%" stopColor="#f43f5e" />
+              </linearGradient>
+              <linearGradient id="grad-emerald" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#10b981" />
+                <stop offset="100%" stopColor="#14b8a6" />
+              </linearGradient>
+              <linearGradient id="grad-amber" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#f59e0b" />
+                <stop offset="100%" stopColor="#f97316" />
+              </linearGradient>
+              <linearGradient id="grad-red" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#ef4444" />
+                <stop offset="100%" stopColor="#ec4899" />
+              </linearGradient>
+              
+              {/* SVG filter for purple neon glow */}
+              <filter id="glow-purple" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="1.2" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
             {candidates.map((candidate, idx) => {
               const numSlices = candidates.length;
               const angle = 360 / numSlices;
@@ -164,12 +203,35 @@ export default function PassTheMic({ roomData }: PassTheMicProps) {
               const y2 = 50 + 45 * Math.sin(endAngle * rad);
 
               const largeArcFlag = angle > 180 ? 1 : 0;
-              const color = colors[idx % colors.length];
 
-              // Rotation for text label in the middle of slice
+              // Redesign: alternating deep premium colors from the reference image
+              const color = idx % 2 === 0 ? "#3b0764" : "#082f49";
+
+              const avatar = getAvatarData(candidate);
+
+              // Rotation for labels/icons in the middle of slice
               const textAngle = startAngle + angle / 2;
-              const textX = 50 + 25 * Math.cos(textAngle * rad);
-              const textY = 50 + 25 * Math.sin(textAngle * rad);
+
+              // Position for circular avatar icon (Radially placed, kept upright)
+              const avatarRad = 28;
+              const avatarX = 50 + avatarRad * Math.cos(textAngle * rad);
+              const avatarY = 50 + avatarRad * Math.sin(textAngle * rad);
+
+              // Position for name label (Radially placed below avatar, kept upright)
+              const nameRad = 16;
+              const nameX = 50 + nameRad * Math.cos(textAngle * rad);
+              const nameY = 50 + nameRad * Math.sin(textAngle * rad);
+
+              // Determine gradient for avatar
+              const getSvgGradientId = (gradientClass: string) => {
+                if (gradientClass.includes("purple")) return "grad-purple";
+                if (gradientClass.includes("blue")) return "grad-blue";
+                if (gradientClass.includes("pink")) return "grad-pink";
+                if (gradientClass.includes("emerald")) return "grad-emerald";
+                if (gradientClass.includes("amber")) return "grad-amber";
+                if (gradientClass.includes("red")) return "grad-red";
+                return "grad-purple";
+              };
 
               return (
                 <g key={idx}>
@@ -180,25 +242,64 @@ export default function PassTheMic({ roomData }: PassTheMicProps) {
                     stroke="#09090b"
                     strokeWidth="0.8"
                   />
-                  {/* Candidate Name Label */}
+                  
+                  {/* Small Circular Avatar Icon (Kept upright - no rotation!) */}
+                  <circle
+                    cx={avatarX}
+                    cy={avatarY}
+                    r="4.5"
+                    fill={`url(#${getSvgGradientId(avatar.gradient)})`}
+                    stroke="#ffffff"
+                    strokeWidth="0.5"
+                    className="drop-shadow-md"
+                  />
                   <text
-                    x={textX}
-                    y={textY}
+                    x={avatarX}
+                    y={avatarY}
                     fill="#ffffff"
-                    fontSize={candidates.length > 6 ? "3" : "4"}
+                    fontSize="3"
                     fontWeight="bold"
                     textAnchor="middle"
                     alignmentBaseline="middle"
-                    transform={`rotate(${textAngle + 180}, ${textX}, ${textY})`}
-                    className="select-none font-medium pointer-events-none"
+                    className="select-none pointer-events-none font-sans"
+                  >
+                    {avatar.emoji}
+                  </text>
+
+                  {/* Candidate Name Label (Kept upright - no rotation!) */}
+                  <text
+                    x={nameX}
+                    y={nameY}
+                    fill="#ffffff"
+                    fontSize={candidates.length > 8 ? "2" : candidates.length > 5 ? "2.4" : "3"}
+                    fontWeight="extrabold"
+                    textAnchor="middle"
+                    alignmentBaseline="middle"
+                    className="select-none font-sans pointer-events-none"
+                    style={{
+                      filter: "drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.95))",
+                    }}
                   >
                     {candidate.slice(0, 7)}
                   </text>
                 </g>
               );
             })}
+
+            {/* Glowing Outer Rings */}
+            <circle cx="50" cy="50" r="47" fill="none" stroke="#a855f7" strokeWidth="2" filter="url(#glow-purple)" opacity="0.6" className="pointer-events-none" />
+            <circle cx="50" cy="50" r="45" fill="none" stroke="#1e1b4b" strokeWidth="1" className="pointer-events-none" />
+
             {/* Center Circle Pin */}
-            <circle cx="50" cy="50" r="8" fill="#09090b" stroke="#ffffff" strokeWidth="1.5" />
+            <circle cx="50" cy="50" r="9" fill="#09090b" stroke="#a855f7" strokeWidth="1.2" />
+            
+            {/* Microphone Icon in Center */}
+            <g transform="translate(47.4, 47.2) scale(0.22)" stroke="#d8b4fe" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="8" y="2" width="8" height="12" rx="4" fill="#a855f7" stroke="#d8b4fe" strokeWidth="2" />
+              <path d="M 4 9 A 8 8 0 0 0 20 9" strokeWidth="2" />
+              <line x1="12" y1="17" x2="12" y2="21" strokeWidth="2" />
+              <line x1="8" y1="21" x2="16" y2="21" strokeWidth="2" />
+            </g>
           </motion.svg>
         </div>
 
