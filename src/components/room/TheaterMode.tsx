@@ -4,9 +4,10 @@ import React, { useEffect, useRef, useState } from "react";
 import { useRoom } from "../../hooks/useRoom";
 import { useRoomStore } from "../../store/useRoomStore";
 import { parseLRC, LyricLine } from "../../lib/lyrics-parser";
-import { Play, Pause, SkipForward, Volume2, VolumeX, Flame, Music, Disc, Sparkles, MessageSquare, AlertTriangle } from "lucide-react";
+import { Play, Pause, SkipForward, Volume2, VolumeX, Flame, Music, Disc, Sparkles, MessageSquare, AlertTriangle, QrCode } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
+import QRCode from "qrcode";
 import PassTheMic from "./PassTheMic";
 
 interface TheaterModeProps {
@@ -121,6 +122,30 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
   const playerRef = useRef<any>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const lyricContainerRef = useRef<HTMLDivElement>(null);
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Generate QR Code on canvas for Theater Mode
+  useEffect(() => {
+    if (qrCanvasRef.current && room?.code && typeof window !== "undefined") {
+      const shareUrl = `${window.location.origin}/room/${room.code}`;
+      QRCode.toCanvas(
+        qrCanvasRef.current,
+        shareUrl,
+        {
+          width: 100,
+          margin: 1.5,
+          color: {
+            dark: "#09090b", // zinc-950
+            light: "#ffffff",
+          },
+          errorCorrectionLevel: "M",
+        },
+        (error) => {
+          if (error) console.error("QR Code generation error:", error);
+        }
+      );
+    }
+  }, [room?.code]);
 
   // Find currently playing song in queue
   const currentItem = queue.find((q) => q.status === "playing" || q.id === room?.current_song_id);
@@ -567,43 +592,61 @@ export default function TheaterMode({ roomData }: TheaterModeProps) {
         </AnimatePresence>
       </div>
 
-      {/* Live Chat Overlay (TV Mode) */}
-      <div className="absolute bottom-6 left-6 z-30 w-80 max-h-[300px] flex flex-col justify-end gap-2 overflow-hidden pointer-events-none">
-        {messages.length > 0 && (
-          <div className="flex items-center gap-1.5 text-[10px] font-extrabold text-purple-400 uppercase tracking-widest px-2.5 mb-1 bg-black/60 backdrop-blur-md self-start py-1.5 rounded-lg border border-zinc-800/40">
-            <MessageSquare className="w-3.5 h-3.5 text-purple-400" />
-            <span>Live Chat</span>
+      {/* Sidebar Panel (QR Code + Live Chat) */}
+      <div className="absolute top-6 bottom-6 left-6 z-30 w-80 flex flex-col gap-4 pointer-events-none">
+        {/* QR Code Card */}
+        <div className="bg-black/70 backdrop-blur-md border border-zinc-900/60 p-4 rounded-2xl shadow-xl flex flex-col items-center text-center pointer-events-auto shrink-0">
+          <div className="flex items-center gap-1.5 text-[10px] font-extrabold text-purple-400 uppercase tracking-widest mb-2.5">
+            <QrCode className="w-3.5 h-3.5 text-purple-400" />
+            <span>Scan to Join</span>
           </div>
-        )}
-        <div className="flex flex-col gap-2 overflow-y-auto pr-2 scrollbar-none">
-          <AnimatePresence>
-            {messages.slice(-5).map((msg) => {
-              const avatar = getAvatarData(msg.nickname);
-              return (
-                <motion.div
-                  key={msg.id}
-                  initial={{ opacity: 0, x: -30, scale: 0.95 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                  transition={{ type: "spring", stiffness: 155, damping: 18 }}
-                  className="flex items-start gap-2.5 bg-black/70 backdrop-blur-md border border-zinc-900/60 p-2.5 rounded-2xl shadow-xl max-w-full"
-                >
-                  <div className={`w-7 h-7 rounded-full bg-gradient-to-tr ${avatar.gradient} flex-shrink-0 flex items-center justify-center text-[10px] font-extrabold text-white shadow-inner relative`}>
-                    <span>{avatar.initials}</span>
-                    <span className="absolute -top-1 -right-1 text-[9px]">{avatar.emoji}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="font-bold text-purple-400 text-[11px] block leading-tight">
-                      {msg.nickname}
-                    </span>
-                    <span className="text-zinc-200 text-xs break-words font-semibold mt-0.5 block leading-normal">
-                      {msg.message}
-                    </span>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
+          <div className="bg-white p-2 rounded-xl mb-2 border border-zinc-850 shadow-inner">
+            <canvas ref={qrCanvasRef} className="w-24 h-24" />
+          </div>
+          <span className="block text-[9px] font-bold text-zinc-500 uppercase tracking-wider">Room Code</span>
+          <span className="font-heading text-xl tracking-widest text-white font-extrabold select-all leading-none">
+            {room?.code}
+          </span>
+        </div>
+
+        {/* Live Chat Overlay */}
+        <div className="flex-1 flex flex-col justify-end gap-2 overflow-hidden">
+          {messages.length > 0 && (
+            <div className="flex items-center gap-1.5 text-[10px] font-extrabold text-purple-400 uppercase tracking-widest px-2.5 mb-1 bg-black/60 backdrop-blur-md self-start py-1.5 rounded-lg border border-zinc-800/40 shrink-0">
+              <MessageSquare className="w-3.5 h-3.5 text-purple-400" />
+              <span>Live Chat</span>
+            </div>
+          )}
+          <div className="flex flex-col gap-2 overflow-hidden">
+            <AnimatePresence initial={false}>
+              {messages.slice(-10).map((msg) => {
+                const avatar = getAvatarData(msg.nickname);
+                return (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, x: -30, scale: 0.95 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                    transition={{ type: "spring", stiffness: 155, damping: 18 }}
+                    className="flex items-start gap-2.5 bg-black/70 backdrop-blur-md border border-zinc-900/60 p-2.5 rounded-2xl shadow-xl max-w-full pointer-events-auto"
+                  >
+                    <div className={`w-7 h-7 rounded-full bg-gradient-to-tr ${avatar.gradient} flex-shrink-0 flex items-center justify-center text-[10px] font-extrabold text-white shadow-inner relative`}>
+                      <span>{avatar.initials}</span>
+                      <span className="absolute -top-1 -right-1 text-[9px]">{avatar.emoji}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="font-bold text-purple-400 text-[11px] block leading-tight">
+                        {msg.nickname}
+                      </span>
+                      <span className="text-zinc-200 text-xs break-words font-semibold mt-0.5 block leading-normal">
+                        {msg.message}
+                      </span>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 

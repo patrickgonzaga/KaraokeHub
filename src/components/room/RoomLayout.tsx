@@ -32,12 +32,50 @@ export default function RoomLayout({ roomData }: RoomLayoutProps) {
         title: `${room?.name} - KaraokeHub`,
         text: `Join my karaoke party "${room?.name}" on KaraokeHub!`,
         url: shareUrl,
-      }).catch(console.error);
+      }).catch(() => {
+        // Fallback to copy if navigator.share fails or is cancelled
+        performCopy(shareUrl);
+      });
     } else {
-      navigator.clipboard.writeText(shareUrl);
-      setShowShareToast(true);
-      setTimeout(() => setShowShareToast(false), 2500);
+      performCopy(shareUrl);
     }
+  };
+
+  const performCopy = (text: string) => {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      navigator.clipboard.writeText(text)
+        .then(() => triggerToast())
+        .catch(() => fallbackCopy(text));
+    } else {
+      fallbackCopy(text);
+    }
+  };
+
+  const fallbackCopy = (text: string) => {
+    try {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.top = "0";
+      textArea.style.left = "0";
+      textArea.style.opacity = "0";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const successful = document.execCommand("copy");
+      document.body.removeChild(textArea);
+      if (successful) {
+        triggerToast();
+      }
+    } catch (err) {
+      console.error("Fallback copy failed:", err);
+    }
+  };
+
+  const triggerToast = () => {
+    setShowShareToast(true);
+    const timer = setTimeout(() => setShowShareToast(false), 2500);
+    return () => clearTimeout(timer);
   };
 
   const handleClaimHost = async () => {

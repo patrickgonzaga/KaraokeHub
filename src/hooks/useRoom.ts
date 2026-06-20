@@ -884,23 +884,55 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
       try {
         if (!room) return;
 
-        // Fetch local user row
-        const { data: dbUser } = await supabase
+        let targetUserId = activeUserId;
+
+        // 1. Fetch user by ID first (primary key, guaranteed unique)
+        let { data: dbUser } = await supabase
           .from("room_users")
           .select("id")
-          .eq("room_id", room.id)
-          .eq("nickname", activeNickname)
+          .eq("id", activeUserId)
           .maybeSingle();
 
-        if (dbUser) {
-          await supabase.from("chat_messages").insert({
-            room_id: room.id,
-            user_id: dbUser.id,
-            nickname: activeNickname,
-            message: messageText,
-            gif_url: gifUrl || null,
-          });
+        // Fallback: search by nickname inside this room (limit 1 to avoid PGRST116)
+        if (!dbUser) {
+          const { data: dbUserByNick } = await supabase
+            .from("room_users")
+            .select("id")
+            .eq("room_id", room.id)
+            .eq("nickname", activeNickname)
+            .limit(1)
+            .maybeSingle();
+
+          if (dbUserByNick) {
+            targetUserId = dbUserByNick.id;
+          } else {
+            // Auto-create user if missing to prevent chat from breaking
+            const { data: newUser } = await supabase
+              .from("room_users")
+              .insert({
+                id: activeUserId,
+                room_id: room.id,
+                nickname: activeNickname,
+                role: "guest",
+                is_online: true,
+              })
+              .select("id")
+              .single();
+            if (newUser) {
+              targetUserId = newUser.id;
+            }
+          }
+        } else {
+          targetUserId = dbUser.id;
         }
+
+        await supabase.from("chat_messages").insert({
+          room_id: room.id,
+          user_id: targetUserId,
+          nickname: activeNickname,
+          message: messageText,
+          gif_url: gifUrl || null,
+        });
 
         // Background refresh to reflect sent message immediately
         fetchRoomData(true);
@@ -914,6 +946,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
   const sendReaction = useCallback(
     async (emoji: string) => {
       const activeNickname = nickname || "Guest";
+      const activeUserId = userId || "anonymous-uuid";
 
       // 1. Trigger reaction on this screen instantly
       triggerFloatingReaction(emoji);
@@ -952,44 +985,76 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
       try {
         if (!room) return;
         
-        // Find user record
-        const { data: dbUser } = await supabase
+        let targetUserId = activeUserId;
+
+        // 1. Fetch user by ID first (primary key, guaranteed unique)
+        let { data: dbUser } = await supabase
           .from("room_users")
           .select("id")
-          .eq("room_id", room.id)
-          .eq("nickname", activeNickname)
+          .eq("id", activeUserId)
           .maybeSingle();
 
-        if (dbUser) {
-          await supabase.from("reactions").insert({
-            room_id: room.id,
-            user_id: dbUser.id,
-            nickname: activeNickname,
-            emoji,
-          });
-
-          // Update metrics
-          const { data: existingLb } = await supabase
-            .from("leaderboards")
-            .select("id, score_value")
+        // Fallback: search by nickname inside this room (limit 1 to avoid PGRST116)
+        if (!dbUser) {
+          const { data: dbUserByNick } = await supabase
+            .from("room_users")
+            .select("id")
             .eq("room_id", room.id)
             .eq("nickname", activeNickname)
-            .eq("metric_type", "most_reactions")
+            .limit(1)
             .maybeSingle();
 
-          if (existingLb) {
-            await supabase
-              .from("leaderboards")
-              .update({ score_value: Number(existingLb.score_value) + 1, updated_at: new Date().toISOString() })
-              .eq("id", existingLb.id);
+          if (dbUserByNick) {
+            targetUserId = dbUserByNick.id;
           } else {
-            await supabase.from("leaderboards").insert({
-              room_id: room.id,
-              nickname: activeNickname,
-              metric_type: "most_reactions",
-              score_value: 1,
-            });
+            // Auto-create user if missing to prevent reaction from breaking
+            const { data: newUser } = await supabase
+              .from("room_users")
+              .insert({
+                id: activeUserId,
+                room_id: room.id,
+                nickname: activeNickname,
+                role: "guest",
+                is_online: true,
+              })
+              .select("id")
+              .single();
+            if (newUser) {
+              targetUserId = newUser.id;
+            }
           }
+        } else {
+          targetUserId = dbUser.id;
+        }
+
+        await supabase.from("reactions").insert({
+          room_id: room.id,
+          user_id: targetUserId,
+          nickname: activeNickname,
+          emoji,
+        });
+
+        // Update metrics
+        const { data: existingLb } = await supabase
+          .from("leaderboards")
+          .select("id, score_value")
+          .eq("room_id", room.id)
+          .eq("nickname", activeNickname)
+          .eq("metric_type", "most_reactions")
+          .maybeSingle();
+
+        if (existingLb) {
+          await supabase
+            .from("leaderboards")
+            .update({ score_value: Number(existingLb.score_value) + 1, updated_at: new Date().toISOString() })
+            .eq("id", existingLb.id);
+        } else {
+          await supabase.from("leaderboards").insert({
+            room_id: room.id,
+            nickname: activeNickname,
+            metric_type: "most_reactions",
+            score_value: 1,
+          });
         }
 
         // Background refresh to reflect reaction immediately
@@ -998,7 +1063,7 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
         // Fail silently
       }
     },
-    [room, nickname, triggerFloatingReaction, updateDemoState, fetchRoomData]
+    [room, nickname, userId, triggerFloatingReaction, updateDemoState, fetchRoomData]
   );
 
   const submitScore = useCallback(
@@ -1207,14 +1272,22 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
         { event: "INSERT", schema: "public", table: "chat_messages", filter: `room_id=eq.${roomId}` },
         (payload) => {
           console.log("Realtime DB update [chat_messages]:", payload);
-          setMessages((prev) => [...prev, payload.new as ChatMessage]);
+          const newMsg = payload.new as ChatMessage;
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
         }
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications", filter: `room_id=eq.${roomId}` },
         (payload) => {
-          setNotifications((prev) => [payload.new as RoomNotification, ...prev.slice(0, 9)]);
+          const newNotif = payload.new as RoomNotification;
+          setNotifications((prev) => {
+            if (prev.some((n) => n.id === newNotif.id)) return prev;
+            return [newNotif, ...prev.slice(0, 9)];
+          });
         }
       )
       .on(
@@ -1236,7 +1309,11 @@ export function useRoom(roomCode: string, initialRoomName?: string) {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "party_events", filter: `room_id=eq.${roomId}` },
         (payload) => {
-          setPartyEvents((prev) => [payload.new as PartyEvent, ...prev.slice(0, 19)]);
+          const newEvt = payload.new as PartyEvent;
+          setPartyEvents((prev) => {
+            if (prev.some((e) => e.id === newEvt.id)) return prev;
+            return [newEvt, ...prev.slice(0, 19)];
+          });
         }
       );
 
